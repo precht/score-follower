@@ -12,38 +12,45 @@ class Lilypond : public QObject
 
 public:
   explicit Lilypond(QObject *parent = nullptr);
+  void setScore(const QVector<int> &scoreNotes);
 
 public slots:
-  void generateScore(const QVector<int> &scoreNotes, int numberOfPlayedNotes);
+  void setPosition(int position);
+  void generateScore();
+  void setPositionGenerateScore(int position);
 
 signals:
   void finishedGeneratingScore();
 
-private slots:
+private:
   /**
    * @brief Load header, footer and color changer files use to create lilypond input file.
    */
   void loadFiles();
-//  void finishGeneratingScore(int exitCode, QProcess::ExitStatus exitStatus);
 
-private:
-  const QString m_headerFileName = ":/other/header.ly";
-  const QString m_footerFileName = ":/other/footer.ly";
-  const QString m_colorChangerFileName = ":/other/color-changer.ly";
-  const QString m_notesFileName = ":/other/notes-lilypond";
-  const QString m_configFileName = ":/other/lilypond.cfg";
+  // -----
 
-  const int m_notesPerLine = 8;
-  const int m_dpi = 150;
-  const QString m_lilypondFileName = "/tmp/score.ly";
-  const QString m_scoreFolderName = "/tmp/score-follower/";
-  const QString m_scoreFileName = "score";
+  const QString _headerFileName = ":/other/header.ly";
+  const QString _footerFileName = ":/other/footer.ly";
+  const QString _colorChangerFileName = ":/other/color-changer.ly";
+  const QString _notesFileName = ":/other/notes-lilypond";
+  const QString _configFileName = ":/other/lilypond.cfg";
 
-  QByteArray m_header;
-  QByteArray m_footer;
-  QByteArray m_colorChanger;
-  QList<QString> m_config;
-  QHash<int, QString> m_notes;
+  const int _dpi = 150;
+  const int _notesPerLine = 8;
+  const QString _lilypondFileName = "/tmp/score-follower/score.ly";
+  const QString _scoreFolderName = "/tmp/score-follower/";
+  const QString _scoreFileName = "score";
+
+  QByteArray _header;
+  QByteArray _footer;
+  QByteArray _colorChanger;
+  QList<QString> _config;
+  QHash<int, QString> _notes;
+
+  QVector<int> _scoreNotes;
+  int _numberOfPlayedNotes = -1;
+  int _previousNumberOfPlayedNotes = -1;
 };
 
 

@@ -21,6 +21,5 @@ Item {
     width: imageWidth;
     height: imageHeight;
     anchors.centerIn: parent;
-    source: imageFileName;
   }
 }

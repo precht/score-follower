@@ -7,5 +7,6 @@
         <file>other/header.ly</file>
         <file>other/notes-frequency</file>
         <file>other/notes-lilypond</file>
+        <file>other/score</file>
     </qresource>
 </RCC>

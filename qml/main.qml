@@ -39,13 +39,13 @@ ApplicationWindow {
     Row {
       anchors.fill: parent
 
-      Button {
-        id: openButton
-        width: buttonWidth;
-        text: "Open";
-        onClicked: open();
-      }
-      ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
+//      Button {
+//        id: openButton
+//        width: buttonWidth;
+//        text: "Open";
+//        onClicked: open();
+//      }
+//      ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
       Button {
         id: startButton
         width: buttonWidth;
@@ -64,7 +64,7 @@ ApplicationWindow {
       Rectangle {
         height: 1;
         color: "transparent";
-        width: parent.width - (3 * buttonWidth) - (3 * separatorWidth);
+        width: parent.width - (2 * buttonWidth) - (2 * separatorWidth);
       }
       ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
       Button {

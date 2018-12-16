@@ -35,3 +35,10 @@ RESOURCES += \
     resources.qrc
 
 
+LIBS += -L$$PWD/../../../../../usr/lib/ -lessentia -lessentia  -lfftw3f -lavformat -lavcodec -lavutil -lavresample -lsamplerate -ltag -lyaml -lchromaprint
+INCLUDEPATH += $$PWD/../../../../../usr/include/essentia
+DEPENDPATH += $$PWD/../../../../../usr/include/essentia
+PRE_TARGETDEPS += $$PWD/../../../../../usr/lib/libessentia.a
+
+INCLUDEPATH += /usr/include/aubio/
+LIBS += -laubio
