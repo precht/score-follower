@@ -3,10 +3,14 @@
 #(set-default-paper-size "a6landscape")
 
 \paper {
+%   remove first line indent
   indent = 0\cm
-} 
+%   remove page number
+  print-page-number = ##f
+}
 
 \header {
+%   remove footer
   tagline = ""
 }
 

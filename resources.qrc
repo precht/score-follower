@@ -8,5 +8,7 @@
         <file>other/notes-frequency</file>
         <file>other/notes-lilypond</file>
         <file>other/score</file>
+        <file>qml/Indicator.qml</file>
+        <file>other/indicator-settings</file>
     </qresource>
 </RCC>

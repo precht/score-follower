@@ -15,9 +15,8 @@ public:
   void setScore(const QVector<int> &scoreNotes);
 
 public slots:
-  void setPosition(int position);
   void generateScore();
-  void setPositionGenerateScore(int position);
+  QVector<QVector<int>> indicatorYs() const;
 
 signals:
   void finishedGeneratingScore();
@@ -27,6 +26,7 @@ private:
    * @brief Load header, footer and color changer files use to create lilypond input file.
    */
   void loadFiles();
+  void calculateIndicatorYPositions();
 
   // -----
 
@@ -36,7 +36,7 @@ private:
   const QString _notesFileName = ":/other/notes-lilypond";
   const QString _configFileName = ":/other/lilypond.cfg";
 
-  const int _dpi = 150;
+  const int _dpi = 160;
   const int _notesPerLine = 8;
   const QString _lilypondFileName = "/tmp/score-follower/score.ly";
   const QString _scoreFolderName = "/tmp/score-follower/";
@@ -49,8 +49,7 @@ private:
   QHash<int, QString> _notes;
 
   QVector<int> _scoreNotes;
-  int _numberOfPlayedNotes = -1;
-  int _previousNumberOfPlayedNotes = -1;
+  QVector<QVector<int>> _indicatorYs;
 };
 
 

@@ -6,6 +6,7 @@
 #include <QUrl>
 #include <QDir>
 #include <QDirIterator>
+#include <QImage>
 
 Lilypond::Lilypond(QObject *parent)
   : QObject(parent)
@@ -20,17 +21,14 @@ void Lilypond::setScore(const QVector<int> &scoreNotes)
   _scoreNotes = scoreNotes;
 }
 
-void Lilypond::setPosition(int position)
-{
-  _numberOfPlayedNotes = position + 1;
-  qInfo() << "position" << position + 1;
-}
-
 void Lilypond::generateScore()
 {
-  if (_numberOfPlayedNotes == _previousNumberOfPlayedNotes)
-    return;
-  _previousNumberOfPlayedNotes = _numberOfPlayedNotes;
+  // delete old files
+  QDir dir("/tmp/score-follower/");
+  dir.setNameFilters(QStringList() << "*.*");
+  dir.setFilter(QDir::Files);
+  for (auto &dirFile : dir.entryList())
+      dir.remove(dirFile);
 
   QFile lilypondFile(_lilypondFileName);
   if (!lilypondFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
@@ -40,15 +38,22 @@ void Lilypond::generateScore()
 
   QTextStream out(&lilypondFile);
   out << _header;
-  for (int index = 0; index < _scoreNotes.size(); index++) {
-    if (index % _notesPerLine == 0 && index > 0)
+  int index = 0;
+  for (; index < _scoreNotes.size(); index++) {
+    if (index % _notesPerLine == 0 && index > 0) // break line
       out << "\\break\n";
-    if (index == _numberOfPlayedNotes)
-      out << _colorChanger;
+//    if (index == _numberOfPlayedNotes) // change color
+//      out << _colorChanger;
     out << _notes[_scoreNotes[index]];
-    if (index == 0)
+    if (index == 0) // set length of first note (rest will follow)
       out << 1;
     out << ' ';
+  }
+  // add invisible rests at the end of last line
+  if (index % _notesPerLine != 0) {
+    do {
+      out << "s ";
+    } while (++index % _notesPerLine != 0);
   }
   out << _footer;
   out.flush();
@@ -63,19 +68,13 @@ void Lilypond::generateScore()
 
   connect(process, qOverload<int>(&QProcess::finished), process, &QProcess::deleteLater);
   connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
-          [=](int exitCode, QProcess::ExitStatus) {
-    if (exitCode != 0)
+          [=](int exitCode, QProcess::ExitStatus exitStatus) {
+    if (exitCode != 0 || exitStatus != QProcess::NormalExit)
       qInfo() << "lilypond error:" << process->readAllStandardError();
     emit finishedGeneratingScore();
   });
 
   process->start("/usr/bin/lilypond", config);
-}
-
-void Lilypond::setPositionGenerateScore(int position)
-{
-  setPosition(position);
-  generateScore();
 }
 
 void Lilypond::loadFiles()
@@ -125,4 +124,9 @@ void Lilypond::loadFiles()
   } else {
     qDebug() << "Failed to open: " << _notesFileName;
   }
+}
+
+QVector<QVector<int> > Lilypond::indicatorYs() const
+{
+  return _indicatorYs;
 }

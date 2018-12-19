@@ -1,7 +1,7 @@
 CONFIG += c++14
 QMAKE_CXXFLAGS += -O2 -Wall -Wshadow -Wpedantic -Wextra
 
-QT += quick core multimedia
+QT += quick core multimedia widgets quickcontrols2
 DEFINES += QT_DEPRECATED_WARNINGS
 
 INCLUDEPATH += include
@@ -21,17 +21,17 @@ QML_DESIGNER_IMPORT_PATH =
 HEADERS += \
     include/controller.h \
     include/lilypond.h \
-    include/recorder.h
+    include/recorder.h \
+    include/devicesmodel.h
 
 SOURCES += \
     src/main.cpp \
     src/controller.cpp \
     src/lilypond.cpp \
-    src/recorder.cpp
+    src/recorder.cpp \
+    src/devicesmodel.cpp
 
 RESOURCES += \
-#    qml/qml.qrc \
-#    lilypond/lilypond.qrc
     resources.qrc
 
 
@@ -39,6 +39,3 @@ LIBS += -L$$PWD/../../../../../usr/lib/ -lessentia -lessentia  -lfftw3f -lavform
 INCLUDEPATH += $$PWD/../../../../../usr/include/essentia
 DEPENDPATH += $$PWD/../../../../../usr/include/essentia
 PRE_TARGETDEPS += $$PWD/../../../../../usr/lib/libessentia.a
-
-INCLUDEPATH += /usr/include/aubio/
-LIBS += -laubio

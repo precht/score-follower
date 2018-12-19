@@ -6,28 +6,30 @@
 
 #include <essentia/algorithmfactory.h>
 #include <essentia/pool.h>
+#include <QDateTime>
 #include <limits>
 
 using namespace essentia;
 using namespace standard;
 
 Recorder::Recorder(QObject *parent)
-  : QObject(parent), _infinity(std::numeric_limits<int64_t>::max())
+  : QObject(parent)
 {
   essentia::init();
   initializeNotes();
 
   _recorder = new QAudioRecorder(this);
 
-  _recorderSettings.setCodec("audio/AMR");
-  _recorderSettings.setQuality(QMultimedia::VeryHighQuality);
-
+  _recorderSettings.setChannelCount(1);
+  _recorderSettings.setSampleRate(_sampleRate);
   _recorder->setEncodingSettings(_recorderSettings);
-  _recorder->setOutputLocation(QString("/tmp/score-follower/recording.amr"));
+  _recorder->setOutputLocation(QString("/dev/null"));
 
   _probe = new QAudioProbe(this);
   connect(_probe, &QAudioProbe::audioBufferProbed, this, &Recorder::processBuffer);
   _probe->setSource(_recorder);
+
+  _recorder->record();
 }
 
 void Recorder::initializeNotes()
@@ -84,12 +86,62 @@ void Recorder::initializePitchDetector(int bufferFrameSize, int bufferSampleRate
   _pitchDetector->output("pitchConfidence").set(_currentConfidence);
 }
 
+void Recorder::setMaxAmplitude(const QAudioFormat &format)
+{
+  switch (format.sampleSize()) {
+  case 8:
+    switch (format.sampleType()) {
+    case QAudioFormat::UnSignedInt:
+      _maxAmplitude = 255;
+      break;
+    case QAudioFormat::SignedInt:
+      _maxAmplitude = 127;
+      break;
+    default:
+      break;
+    }
+    break;
+  case 16:
+    switch (format.sampleType()) {
+    case QAudioFormat::UnSignedInt:
+      _maxAmplitude = 65535;
+      break;
+    case QAudioFormat::SignedInt:
+      _maxAmplitude = 32767;
+      break;
+    default:
+      break;
+    }
+    break;
+
+  case 32:
+    switch (format.sampleType()) {
+    case QAudioFormat::UnSignedInt:
+      _maxAmplitude = 0xffffffff;
+      break;
+    case QAudioFormat::SignedInt:
+      _maxAmplitude = 0x7fffffff;
+      break;
+    case QAudioFormat::Float:
+      _maxAmplitude = 1;
+    default:
+      break;
+    }
+    break;
+
+  default:
+    break;
+  }
+
+  _maxAmplitude /= 2;
+}
+
 void Recorder::setScore(const QVector<int> &scoreNotes)
 {
   _scoreNotes = scoreNotes;
-  _dtwRow.fill(_infinity, scoreNotes.size());
-  _position = 0;
-  _rowNumber = 0;
+  _dtwRow.resize(_scoreNotes.size());
+  _nextRow.resize(_scoreNotes.size());
+  resetDtw();
 }
 
 int Recorder::findNoteFromPitch(float pitch)
@@ -109,93 +161,113 @@ int Recorder::findNoteFromPitch(float pitch)
 
 void Recorder::startRecording()
 {
+  if (_recorder->status() == QAudioRecorder::RecordingStatus) {
+    _recorder->stop();
+    while (_recorder->status() == QAudioRecorder::FinalizingStatus)
+      QThread::msleep(10);
+  }
+  _isRunning = true;
+  resetDtw();
   _recorder->record();
-  _position = 0;
-  _rowNumber = 0;
-  emit positionChanged(-1);
+  emit positionChanged(0);
 }
 
 void Recorder::stopRecording()
 {
+  _isRunning = false;
   _recorder->stop();
-  emit finished();
+  while (_recorder->status() == QAudioRecorder::FinalizingStatus)
+    QThread::msleep(10);
+  _recorder->record();
 }
 
 void Recorder::processBuffer(const QAudioBuffer buffer)
 {
   auto format = buffer.format();
-  if (_essentiaToRecordingBufferSizeRatio * buffer.frameCount() != _bufferSize || format.sampleRate() != _bufferSampleRate)
+  if (_essentiaToRecordingBufferSizeRatio * buffer.frameCount() != _bufferSize || format.sampleRate() != _bufferSampleRate) {
     initializePitchDetector(_essentiaToRecordingBufferSizeRatio * buffer.frameCount(), buffer.format().sampleRate());
+    setMaxAmplitude(format);
+  }
 
   const int channelBytes = buffer.format().sampleSize() / 8;
   const unsigned char *ptr = reinterpret_cast<const unsigned char*>(buffer.data());
 
-  if ((int)_audio.size() > _bufferSize)
+  if ((int)_audio.size() >= _bufferSize)
     _audio.erase(_audio.begin(), _audio.begin() + buffer.frameCount());
 
-  float value = 0;
+  _level = 0;
   for (int i = 0; i < buffer.frameCount(); i++) {
+    for (int j = 0; j < format.channelCount(); j++) {
+      float value = 0;
 
-    if (format.sampleSize() == 8) {
-      value = *reinterpret_cast<const qint8*>(ptr);
-    } else if (format.sampleSize() == 16 ) {
-      if (format.byteOrder() == QAudioFormat::LittleEndian)
-        value = qFromLittleEndian<qint16>(ptr);
-      else
-        value = qFromBigEndian<qint16>(ptr);
-    } else if (format.sampleSize() == 32 && (format.sampleType() == QAudioFormat::UnSignedInt
-                                             || format.sampleType() == QAudioFormat::SignedInt)) {
-      if (format.byteOrder() == QAudioFormat::LittleEndian)
-        value = qFromLittleEndian<quint32>(ptr);
-      else
-        value = qFromBigEndian<quint32>(ptr);
-    } else if (format.sampleSize() == 32 && format.sampleType() == QAudioFormat::Float) {
-      value = *reinterpret_cast<const float*>(ptr);
-    } else {
-      qDebug() << "Unsupported audio format.";
+      if (format.sampleSize() == 8) {
+        value = *reinterpret_cast<const qint8*>(ptr);
+      } else if (format.sampleSize() == 16 ) {
+        if (format.byteOrder() == QAudioFormat::LittleEndian)
+          value = qFromLittleEndian<qint16>(ptr);
+        else
+          value = qFromBigEndian<qint16>(ptr);
+      } else if (format.sampleSize() == 32 && (format.sampleType() == QAudioFormat::UnSignedInt
+                                               || format.sampleType() == QAudioFormat::SignedInt)) {
+        if (format.byteOrder() == QAudioFormat::LittleEndian)
+          value = qFromLittleEndian<quint32>(ptr);
+        else
+          value = qFromBigEndian<quint32>(ptr);
+      } else if (format.sampleSize() == 32 && format.sampleType() == QAudioFormat::Float) {
+        value = *reinterpret_cast<const float*>(ptr);
+      } else {
+        qDebug() << "Unsupported audio format.";
+      }
+
+      _level = qMax(_level, qAbs(value / _maxAmplitude));
+      _audio.push_back(value);
+      ptr += channelBytes;
     }
-
-    _audio.push_back(value);
-    ptr += channelBytes;
   }
 
-  _windowCalculator->compute();
-  _spectrumCalculator->compute();
-  _pitchDetector->compute();
+  if (_isRunning) {
+    _windowCalculator->compute();
+    _spectrumCalculator->compute();
+    _pitchDetector->compute();
 
-  if (_currentPitch < _notesBoundry[_noteNumber].first || _currentPitch > _notesBoundry[_noteNumber].second)
-    _noteNumber = findNoteFromPitch(_currentPitch);
+    if (_currentPitch < _notesBoundry[_noteNumber].first || _currentPitch > _notesBoundry[_noteNumber].second)
+      _noteNumber = findNoteFromPitch(_currentPitch);
 
-  if (_currentConfidence >= _minimalConfidence)
-    calculatePosition();
+//    qInfo() << _noteNumber << _currentConfidence;
+
+    if (_currentConfidence >= _minimalConfidence)
+      calculatePosition();
+  }
+
+  emit levelChanged(_level);
+}
+
+void Recorder::resetDtw()
+{
+  _position = -1;
+  _dtwRow.fill(0);
+//  for (int i = 0; i < _dtwRow.size(); i++)
+//    _dtwRow[i] = i;
 }
 
 void Recorder::calculatePosition()
 {
   // dtw algorithm
-
-  if (_rowNumber++ == 0) {
-    _dtwRow[0] = qAbs(_noteNumber - _scoreNotes[0]);
-    for (int i = 1; i < _dtwRow.size(); i++)
-      _dtwRow[i] = qAbs(_noteNumber - _scoreNotes[i]) + _dtwRow[i - 1];
-    return;
-  }
-
-  QVector<int64_t> nextRow(_dtwRow.size(), _infinity);
-  nextRow[0] = qAbs(_noteNumber - _scoreNotes[0]) + _dtwRow[0];
+  _nextRow[0] = qAbs(_noteNumber - _scoreNotes[0]) + _dtwRow[0];
 
   int position = 0;
-  int minValue = nextRow[0];
+  int minValue = _nextRow[0];
   for (int i = 1; i < _dtwRow.size(); i++) {
-    nextRow[i] = qAbs(_noteNumber - _scoreNotes[i]) + qMin(nextRow[i - 1], qMin(_dtwRow[i], _dtwRow[i-1]));
-    if (nextRow[i] < minValue) {
+    _nextRow[i] = qAbs(_noteNumber - _scoreNotes[i]) + qMin(_nextRow[i - 1], qMin(_dtwRow[i], _dtwRow[i-1]));
+    if (_nextRow[i] < minValue) {
       position = i;
-      minValue = nextRow[i];
+      minValue = _nextRow[i];
     }
   }
 
-  _dtwRow.swap(nextRow);
+  _dtwRow.swap(_nextRow); // fast swap
   if (position != _position)
-    emit positionChanged(position);
+    emit positionChanged(position + 1);
   _position = position;
 }
+
