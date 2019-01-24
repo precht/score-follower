@@ -44,7 +44,7 @@ void Recorder::initializeNotes()
     float noteFrequency;
     while (!in.atEnd()) {
       in >> noteNumber >> noteFrequency;
-      if (noteNumber == 0 && noteFrequency == 0)
+      if (noteNumber == 0 && noteFrequency == 0.f)
         continue;
       if (noteNumber != _notesFrequency.size())
         qDebug() << "Wrong note number in input file: " << _notesFrequencyFileName;
@@ -124,6 +124,7 @@ void Recorder::setMaxAmplitude(const QAudioFormat &format)
       break;
     case QAudioFormat::Float:
       _maxAmplitude = 1;
+      break;
     default:
       break;
     }
@@ -133,7 +134,7 @@ void Recorder::setMaxAmplitude(const QAudioFormat &format)
     break;
   }
 
-  _maxAmplitude /= 2;
+//  _maxAmplitude /= 2;
 }
 
 void Recorder::setScore(const QVector<int> &scoreNotes)

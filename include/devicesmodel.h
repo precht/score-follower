@@ -9,7 +9,7 @@
 class DevicesModel : public QAbstractListModel
 {
 public:
-  DevicesModel(QObject *parent = 0);
+  DevicesModel(QObject *parent = nullptr);
 
 public slots:
   int rowCount(const QModelIndex &parent = QModelIndex()) const override;

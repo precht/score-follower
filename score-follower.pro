@@ -22,20 +22,29 @@ HEADERS += \
     include/controller.h \
     include/lilypond.h \
     include/recorder.h \
-    include/devicesmodel.h
+    include/devicesmodel.h \
+    include/scorereader.h
 
 SOURCES += \
     src/main.cpp \
     src/controller.cpp \
     src/lilypond.cpp \
     src/recorder.cpp \
-    src/devicesmodel.cpp
+    src/devicesmodel.cpp \
+    src/scorereader.cpp
 
 RESOURCES += \
     resources.qrc
 
 
-LIBS += -L$$PWD/../../../../../usr/lib/ -lessentia -lessentia  -lfftw3f -lavformat -lavcodec -lavutil -lavresample -lsamplerate -ltag -lyaml -lchromaprint
-INCLUDEPATH += $$PWD/../../../../../usr/include/essentia
-DEPENDPATH += $$PWD/../../../../../usr/include/essentia
-PRE_TARGETDEPS += $$PWD/../../../../../usr/lib/libessentia.a
+LIBS += -L$$PWD/../../../../../usr/local/lib/ -lessentia -lessentia  -lfftw3f -lavformat -lavcodec -lavutil -lavresample -lsamplerate -ltag -lyaml -lchromaprint
+INCLUDEPATH += $$PWD/../../../../../usr/local/include/essentia
+DEPENDPATH += $$PWD/../../../../../usr/local/include/essentia
+PRE_TARGETDEPS += $$PWD/../../../../../usr/local/lib/libessentia.a
+
+unix:!macx: LIBS += -L$$PWD/../../../../../opt/midifile/lib/ -lmidifile
+
+INCLUDEPATH += $$PWD/../../../../../opt/midifile/include
+DEPENDPATH += $$PWD/../../../../../opt/midifile/include
+
+unix:!macx: PRE_TARGETDEPS += $$PWD/../../../../../opt/midifile/lib/libmidifile.a

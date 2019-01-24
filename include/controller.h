@@ -25,7 +25,6 @@ public slots:
   int indicatorX(int index);
   int indicatorY(int index);
   void openScore();
-  QVector<int> readScoreFile();
 
   float level() const;
   void setLevel(float level);

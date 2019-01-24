@@ -1,4 +1,5 @@
 #include "controller.h"
+#include "scorereader.h"
 #include <QDebug>
 #include <QVector>
 #include <QTimer>
@@ -44,30 +45,10 @@ void Controller::openScore()
   if (_scoreFileName == "")
     return ;
 
-  QVector<int> scoreNotes = readScoreFile();
+  QVector<int> scoreNotes = ScoreReader::readScoreFile(_scoreFileName);
   _lilypond->setScore(scoreNotes);
   _recorder->setScore(scoreNotes);
   emit generateScore();
-}
-
-QVector<int> Controller::readScoreFile()
-{
-  QVector<int> scoreNotes;
-  scoreNotes.clear();
-  QFile scoreFile(_scoreFileName);
-  if (scoreFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QTextStream in(&scoreFile);
-    QString noteNumber;
-    while (!in.atEnd()) {
-      in >> noteNumber;
-      if (!noteNumber.isEmpty())
-        scoreNotes.push_back(noteNumber.toInt());
-    }
-    scoreFile.close();
-  } else {
-    qDebug() << "Failed to open: " << _scoreFileName;
-  }
-  return scoreNotes;
 }
 
 int Controller::playedNotes() const

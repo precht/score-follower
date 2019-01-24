@@ -13,6 +13,7 @@ ApplicationWindow {
   property int separatorWidth: 13
   property int comboBoxWidth: 319
   property real level: 0
+  property bool isLoading: false;
 
   // ------------------------- Functions -------------------------
 
@@ -20,6 +21,7 @@ ApplicationWindow {
     //    fileDialog.visible = true;
     controller.playedNotes = 0;
     controller.openScore();
+    isLoading = true;
   }
 
   function start() {
@@ -40,9 +42,14 @@ ApplicationWindow {
 
   Connections {
     target: controller;
-    onUpdateScore: startButton.enabled = true;
+    onUpdateScore: {
+      startButton.enabled = true;
+      isLoading = false;
+    }
   }
 
+  onWidthChanged: update();
+  onHeightChanged: update();
 
   // ------------------------- Layout -------------------------
 
@@ -55,9 +62,9 @@ ApplicationWindow {
 
   header: ToolBar {
     id: toolbar;
-    height: 50;
+//    height: 50;
     Row {
-      height: 40;
+//      height: 40;
       anchors.verticalCenter: parent.verticalCenter;
       anchors.right: parent.right;
 
@@ -169,6 +176,16 @@ ApplicationWindow {
   }
 
   Score {
+    id: score;
     anchors.fill: parent;
+    visible: !isLoading;
+  }
+
+  BusyIndicator {
+    id: busyIndicator;
+    visible: isLoading;
+    width: 100;
+    height: 100;
+    anchors.centerIn: parent;
   }
 }

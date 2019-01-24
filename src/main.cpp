@@ -14,8 +14,8 @@
 int main(int argc, char *argv[])
 {
 //  qputenv("QT_SCALE_FACTOR", "1.5");
-  QQuickStyle::setStyle("org.kde.desktop");
-  QQuickStyle::setFallbackStyle("Default");
+//  QQuickStyle::setStyle("org.kde.desktop");
+  QQuickStyle::setStyle("Default");
 
   QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   QApplication app(argc, argv);
@@ -36,7 +36,6 @@ int main(int argc, char *argv[])
 /*
  * TODO
  * - display multiple pages and automatically change
- * - read midi files
  * - change input device between pc audio input and output (requires to change QAudioRecorder to QAudioInput ???)
  * - test pitch detection for low and for high notes.
  *    maybe instead of having one _minimalConfidence each notes should have its own cut-off confidence value

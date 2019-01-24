@@ -20,7 +20,7 @@ class Recorder : public QObject
   Q_OBJECT
 
 public:
-  Recorder(QObject *parent = 0);
+  Recorder(QObject *parent = nullptr);
   void setScore(const QVector<int> &scoreNotes);
   void resetDtw();
 
