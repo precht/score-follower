@@ -35,7 +35,6 @@ int main(int argc, char *argv[])
 
 /*
  * TODO
- * - display multiple pages and automatically change
  * - change input device between pc audio input and output (requires to change QAudioRecorder to QAudioInput ???)
  * - test pitch detection for low and for high notes.
  *    maybe instead of having one _minimalConfidence each notes should have its own cut-off confidence value

@@ -8,6 +8,8 @@
 #include <essentia/pool.h>
 #include <QDateTime>
 #include <limits>
+#include <numeric>
+//#include <iostream>
 
 using namespace essentia;
 using namespace standard;
@@ -17,6 +19,7 @@ Recorder::Recorder(QObject *parent)
 {
   essentia::init();
   initializeNotes();
+  initializeMinimalConfidence();
 
   _recorder = new QAudioRecorder(this);
 
@@ -62,6 +65,29 @@ void Recorder::initializeNotes()
     lastBoundry = boundry;
   }
   _notesBoundry.push_back({ lastBoundry, std::numeric_limits<float>::max() });
+}
+
+void Recorder::initializeMinimalConfidence()
+{
+  _minimalConfidence.clear();
+
+  QFile confidenceFile(_notesConfidenceFileName);
+  if (confidenceFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QTextStream in(&confidenceFile);
+    int noteNumber;
+    float noteConfidence;
+    while (!in.atEnd()) {
+      in >> noteNumber >> noteConfidence;
+      if (noteNumber == 0 && noteConfidence == 0.f)
+        continue;
+      if (noteNumber != _minimalConfidence.size())
+        qDebug() << "Wrong note number in input file: " << _notesConfidenceFileName;
+      _minimalConfidence.push_back(noteConfidence * _minimalConfidenceCoefficient);
+    }
+    confidenceFile.close();
+  } else {
+    qDebug() << "Failed to open: " << _notesConfidenceFileName;
+  }
 }
 
 void Recorder::initializePitchDetector(int bufferFrameSize, int bufferSampleRate)
@@ -134,7 +160,7 @@ void Recorder::setMaxAmplitude(const QAudioFormat &format)
     break;
   }
 
-//  _maxAmplitude /= 2;
+  //  _maxAmplitude /= 2;
 }
 
 void Recorder::setScore(const QVector<int> &scoreNotes)
@@ -147,9 +173,9 @@ void Recorder::setScore(const QVector<int> &scoreNotes)
 
 int Recorder::findNoteFromPitch(float pitch)
 {
-  uint beg = 0, end = _notesFrequency.size() - 1;
+  int beg = 0, end = _notesBoundry.size() - 1;
   while (beg < end) {
-    uint m = (beg + end) / 2;
+    int m = (beg + end) / 2;
     if (_notesBoundry[m].second < pitch)
       beg = m + 1;
     else if (_notesBoundry[m].first > pitch)
@@ -184,71 +210,104 @@ void Recorder::stopRecording()
 
 void Recorder::processBuffer(const QAudioBuffer buffer)
 {
-  auto format = buffer.format();
-  if (_essentiaToRecordingBufferSizeRatio * buffer.frameCount() != _bufferSize || format.sampleRate() != _bufferSampleRate) {
-    initializePitchDetector(_essentiaToRecordingBufferSizeRatio * buffer.frameCount(), buffer.format().sampleRate());
-    setMaxAmplitude(format);
+//  qInfo() << QDateTime::currentDateTime() << buffer.sampleCount();
+
+  if (buffer.format() != _currentFormat) {
+    _currentFormat = buffer.format();
+    initializePitchDetector(buffer.sampleCount(), buffer.format().sampleRate());
+    setMaxAmplitude(buffer.format());
   }
 
-  const int channelBytes = buffer.format().sampleSize() / 8;
+  updateLevel(buffer);
+  if (!_isRunning)
+    return;
+
+  convertBufferToAudio(buffer);
+  if (_audio.size() < _essentiaFrameSize)
+    return;
+
+  _windowCalculator->compute();
+  _spectrumCalculator->compute();
+  _pitchDetector->compute();
+
+  if (_currentPitch < _notesBoundry[_noteNumber].first || _currentPitch > _notesBoundry[_noteNumber].second)
+    _noteNumber = findNoteFromPitch(_currentPitch);
+
+  if (_currentConfidence >= _minimalConfidence[_noteNumber])
+    calculatePosition();
+
+  _audio.erase(_audio.begin(), _audio.begin() + _essentiaHopSize);
+}
+
+void Recorder::updateLevel(const QAudioBuffer &buffer)
+{
   const unsigned char *ptr = reinterpret_cast<const unsigned char*>(buffer.data());
+  const auto format = buffer.format();
 
-  if ((int)_audio.size() >= _bufferSize)
-    _audio.erase(_audio.begin(), _audio.begin() + buffer.frameCount());
+  if (format.sampleSize() == 8) {
+    _level += qAbs(*reinterpret_cast<const qint8*>(ptr) / _maxAmplitude);
+  } else if (format.sampleSize() == 16 ) {
+    if (format.byteOrder() == QAudioFormat::LittleEndian)
+      _level += qAbs(qFromLittleEndian<qint16>(ptr) / _maxAmplitude);
+    else
+      _level += qAbs(qFromBigEndian<qint16>(ptr) / _maxAmplitude);
+  } else if (format.sampleSize() == 32 && (format.sampleType() == QAudioFormat::UnSignedInt
+                                           || format.sampleType() == QAudioFormat::SignedInt)) {
+    if (format.byteOrder() == QAudioFormat::LittleEndian)
+      _level += qAbs(qFromLittleEndian<quint32>(ptr) / _maxAmplitude);
+    else
+      _level += qAbs(qFromBigEndian<quint32>(ptr) / _maxAmplitude);
+  } else if (format.sampleSize() == 32 && format.sampleType() == QAudioFormat::Float) {
+    _level += qAbs(*reinterpret_cast<const float*>(ptr) / _maxAmplitude);
+  }
 
-  _level = 0;
-  for (int i = 0; i < buffer.frameCount(); i++) {
-    for (int j = 0; j < format.channelCount(); j++) {
-      float value = 0;
+  _levelCount++;
+  if (_levelCount == _maxLevelCount) {
+    emit levelChanged(_level / (_maxLevelCount >> 2));
+    _level = 0;
+    _levelCount = 0;
+  }
+}
 
-      if (format.sampleSize() == 8) {
-        value = *reinterpret_cast<const qint8*>(ptr);
-      } else if (format.sampleSize() == 16 ) {
-        if (format.byteOrder() == QAudioFormat::LittleEndian)
-          value = qFromLittleEndian<qint16>(ptr);
-        else
-          value = qFromBigEndian<qint16>(ptr);
-      } else if (format.sampleSize() == 32 && (format.sampleType() == QAudioFormat::UnSignedInt
-                                               || format.sampleType() == QAudioFormat::SignedInt)) {
-        if (format.byteOrder() == QAudioFormat::LittleEndian)
-          value = qFromLittleEndian<quint32>(ptr);
-        else
-          value = qFromBigEndian<quint32>(ptr);
-      } else if (format.sampleSize() == 32 && format.sampleType() == QAudioFormat::Float) {
-        value = *reinterpret_cast<const float*>(ptr);
-      } else {
-        qDebug() << "Unsupported audio format.";
-      }
+void Recorder::convertBufferToAudio(const QAudioBuffer &buffer)
+{
+  const unsigned char *ptr = reinterpret_cast<const unsigned char*>(buffer.data());
+  const auto format = buffer.format();
+  const int channelBytes = format.sampleSize() / 8;
 
-      _level = qMax(_level, qAbs(value / _maxAmplitude));
-      _audio.push_back(value);
-      ptr += channelBytes;
+  for (int i = 0; i < buffer.sampleCount(); i++) {
+    float value = 0;
+
+    if (format.sampleSize() == 8) {
+      value = *reinterpret_cast<const qint8*>(ptr);
+    } else if (format.sampleSize() == 16 ) {
+      if (format.byteOrder() == QAudioFormat::LittleEndian)
+        value = qFromLittleEndian<qint16>(ptr);
+      else
+        value = qFromBigEndian<qint16>(ptr);
+    } else if (format.sampleSize() == 32 && (format.sampleType() == QAudioFormat::UnSignedInt
+                                             || format.sampleType() == QAudioFormat::SignedInt)) {
+      if (format.byteOrder() == QAudioFormat::LittleEndian)
+        value = qFromLittleEndian<quint32>(ptr);
+      else
+        value = qFromBigEndian<quint32>(ptr);
+    } else if (format.sampleSize() == 32 && format.sampleType() == QAudioFormat::Float) {
+      value = *reinterpret_cast<const float*>(ptr);
+    } else {
+      qDebug() << "Unsupported audio format.";
     }
+
+    _audio.push_back(value);
+    ptr += channelBytes;
   }
-
-  if (_isRunning) {
-    _windowCalculator->compute();
-    _spectrumCalculator->compute();
-    _pitchDetector->compute();
-
-    if (_currentPitch < _notesBoundry[_noteNumber].first || _currentPitch > _notesBoundry[_noteNumber].second)
-      _noteNumber = findNoteFromPitch(_currentPitch);
-
-//    qInfo() << _noteNumber << _currentConfidence;
-
-    if (_currentConfidence >= _minimalConfidence)
-      calculatePosition();
-  }
-
-  emit levelChanged(_level);
 }
 
 void Recorder::resetDtw()
 {
   _position = -1;
   _dtwRow.fill(0);
-//  for (int i = 0; i < _dtwRow.size(); i++)
-//    _dtwRow[i] = i;
+  //  for (int i = 0; i < _dtwRow.size(); i++)
+  //    _dtwRow[i] = i;
 }
 
 void Recorder::calculatePosition()
@@ -257,7 +316,7 @@ void Recorder::calculatePosition()
   _nextRow[0] = qAbs(_noteNumber - _scoreNotes[0]) + _dtwRow[0];
 
   int position = 0;
-  int minValue = _nextRow[0];
+  int64_t minValue = _nextRow[0];
   for (int i = 1; i < _dtwRow.size(); i++) {
     _nextRow[i] = qAbs(_noteNumber - _scoreNotes[i]) + qMin(_nextRow[i - 1], qMin(_dtwRow[i], _dtwRow[i-1]));
     if (_nextRow[i] < minValue) {
@@ -271,4 +330,5 @@ void Recorder::calculatePosition()
     emit positionChanged(position + 1);
   _position = position;
 }
+
 

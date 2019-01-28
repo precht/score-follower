@@ -37,10 +37,13 @@ signals:
 private:
   void initializeDevices();
   void initializeNotes();
+  void initializeMinimalConfidence();
   void initializePitchDetector(int bufferSize, int bufferSampleRate);
   int findNoteFromPitch(float pitch);
   void calculatePosition();
   void calculateMaxAmplitude();
+  void updateLevel(const QAudioBuffer &buffer);
+  void convertBufferToAudio(const QAudioBuffer &buffer);
 
   void setMaxAmplitude(const QAudioFormat &format);
 
@@ -59,13 +62,15 @@ private:
   QAudioEncoderSettings _recorderSettings;
 
   QString _notesFrequencyFileName = ":/other/notes-frequency";
+  QString _notesConfidenceFileName = ":/other/notes-confidence";
   QVector<float> _notesFrequency;
   QVector<QPair<float, float>> _notesBoundry;
   QMap<QString, QAudioDeviceInfo> _devices;
 
-  float _level = 0;
   float _maxAmplitude = 1;
-
+  float _level = 0;
+  int _levelCount = 0;
+  const int _maxLevelCount = 16;
 
   // position
   int _position = 0;
@@ -73,15 +78,18 @@ private:
   QVector<int64_t> _dtwRow;
   QVector<int64_t> _nextRow;
 
-
   // essentia
-  const int _sampleRate = 44100;
-  const float _minimalConfidence = 0.7;
-  const int _essentiaToRecordingBufferSizeRatio = 4;
+  const int _sampleRate = 480 * 100; // 100 buffers per second, 480 samples per buffer
+  const uint _essentiaFrameSize = 480 * 20;
+  const int _essentiaHopSize = 480 * 5;
+
+  const float _minimalConfidenceCoefficient = 0.95f;
+  QVector<float> _minimalConfidence;
+
   const int64_t _infinity = std::numeric_limits<int64_t>::max();
   int _bufferSize = 0;
   int _bufferSampleRate = 0;
-  float _noteNumber = 0;
+  int _noteNumber = 0;
   float _currentPitch = 0;
   float _currentConfidence = 0;
 

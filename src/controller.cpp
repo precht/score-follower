@@ -21,7 +21,8 @@ Controller::Controller(QObject *parent)
   connect(_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
   connect(_recorder, &Recorder::levelChanged, [=](float level){ setLevel(level); });
   connect(_lilypond, &Lilypond::finishedGeneratingScore,
-          [=](){
+          [=](int pagesCount){
+    setPagesNumber(pagesCount);
     calculateIndicatorYs();
     emit updateScore();
   });
@@ -41,7 +42,8 @@ Controller::~Controller()
 
 void Controller::openScore()
 {
-  _scoreFileName = QFileDialog::getOpenFileName(0, "Open Image", QStandardPaths::writableLocation(QStandardPaths::MusicLocation));
+  _scoreFileName = QFileDialog::getOpenFileName(nullptr, "Open Image",
+                                                QStandardPaths::writableLocation(QStandardPaths::MusicLocation));
   if (_scoreFileName == "")
     return ;
 
@@ -58,8 +60,11 @@ int Controller::playedNotes() const
 
 void Controller::setPlayedNotes(int playedNotes)
 {
+  if (playedNotes == _playedNotes)
+    return;
+
   _playedNotes = playedNotes;
-  emit playedNotesChanged();
+  emit playedNotesChanged(playedNotes);
 }
 
 int Controller::indicatorHeight() const
@@ -227,4 +232,23 @@ int Controller::indicatorY(int index)
     return 0;
   }
   return _indicatorYs.front()[y];
+}
+
+int Controller::notesPerPage() const
+{
+  return _notesPerPage;
+}
+
+int Controller::pagesNumber() const
+{
+  return _pagesNumber;
+}
+
+void Controller::setPagesNumber(int pagesNumber)
+{
+  if (_pagesNumber == pagesNumber)
+    return;
+
+  _pagesNumber = pagesNumber;
+  emit pagesNumberChanged(_pagesNumber);
 }

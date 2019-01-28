@@ -19,7 +19,7 @@ public slots:
   QVector<QVector<int>> indicatorYs() const;
 
 signals:
-  void finishedGeneratingScore();
+  void finishedGeneratingScore(int pagesNumber);
 
 private:
   /**
@@ -27,6 +27,7 @@ private:
    */
   void loadFiles();
   void calculateIndicatorYPositions();
+  int countPages();
 
   // -----
 

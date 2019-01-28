@@ -24,8 +24,8 @@
     \context {
       \Staff
       \remove Time_signature_engraver
-      \hide BarLine
-      \hide SpanBar
+%      \hide BarLine
+%      \hide SpanBar
     }
   }
   

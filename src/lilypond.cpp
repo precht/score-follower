@@ -33,7 +33,7 @@ void Lilypond::generateScore()
   QFile lilypondFile(_lilypondFileName);
   if (!lilypondFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
     qDebug() << "Failed to open: " << _lilypondFileName;
-    emit finishedGeneratingScore();
+    emit finishedGeneratingScore(0);
   }
 
   QTextStream out(&lilypondFile);
@@ -71,7 +71,7 @@ void Lilypond::generateScore()
           [=](int exitCode, QProcess::ExitStatus exitStatus) {
     if (exitCode != 0 || exitStatus != QProcess::NormalExit)
       qInfo() << "lilypond error:" << process->readAllStandardError();
-    emit finishedGeneratingScore();
+    emit finishedGeneratingScore(countPages());
   });
 
   process->start("/usr/bin/lilypond", config);
@@ -124,6 +124,14 @@ void Lilypond::loadFiles()
   } else {
     qDebug() << "Failed to open: " << _notesFileName;
   }
+}
+
+int Lilypond::countPages()
+{
+  QDir dir("/tmp/score-follower/");
+  dir.setNameFilters(QStringList() << "*.png");
+  dir.setFilter(QDir::Files);
+  return (dir.entryList().size() - 1);
 }
 
 QVector<QVector<int> > Lilypond::indicatorYs() const

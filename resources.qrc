@@ -10,5 +10,6 @@
         <file>other/score</file>
         <file>qml/Indicator.qml</file>
         <file>other/indicator-settings</file>
+        <file>other/notes-confidence</file>
     </qresource>
 </RCC>

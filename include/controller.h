@@ -15,11 +15,17 @@ class Controller : public QObject
   Q_PROPERTY(int indicatorWidth READ indicatorWidth WRITE setIndicatorWidth NOTIFY indicatorWidthChanged)
   Q_PROPERTY(int indicatorHeight READ indicatorHeight WRITE setIndicatorHeight NOTIFY indicatorHeightChanged)
   Q_PROPERTY(int playedNotes READ playedNotes WRITE setPlayedNotes NOTIFY playedNotesChanged)
+  Q_PROPERTY(int notesPerPage READ notesPerPage NOTIFY notesPerPageChanged)
+  Q_PROPERTY(int pagesNumber READ pagesNumber WRITE setPagesNumber NOTIFY pagesNumberChanged)
   Q_PROPERTY(double indicatorScale READ indicatorScale WRITE setIndicatorScale NOTIFY indicatorScaleChanged)
 
 public:
   explicit Controller(QObject *parent = nullptr);
   ~Controller();
+
+  int notesPerPage() const;
+
+  int pagesNumber() const;
 
 public slots:
   int indicatorX(int index);
@@ -39,6 +45,8 @@ public slots:
   double indicatorScale() const;
   void setIndicatorScale(double indicatorScale);
 
+  void setPagesNumber(int pagesNumber);
+
 signals:
   void updateScore();
   void startRecording();
@@ -48,8 +56,11 @@ signals:
   void followChanged();
   void indicatorWidthChanged();
   void indicatorHeightChanged();
-  void playedNotesChanged();
+  void playedNotesChanged(int playedNotes);
   void indicatorScaleChanged();
+  void notesPerPageChanged(int notesPerPage);
+
+  void pagesNumberChanged(int pagesNumber);
 
 private:
   void initializeIndicatorSettings();
@@ -66,7 +77,9 @@ private:
   double _indicatorScale = 1;
   int _playedNotes = 0;
   int _staffIndent = 0;
+  int _pagesNumber;
 
+  const int _notesPerPage = 32;
   const int scoreGenerateInterval = 250; // in ms
   const QString _indicatorSettingsFileName = ":/other/indicator-settings";
   QString _scoreFileName = ":/other/score";
@@ -79,5 +92,7 @@ private:
   QThread _lilypondThread;
   QThread _recorderThread;
 };
+
+
 
 #endif // CONTROLLER_H
