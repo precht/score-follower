@@ -16,6 +16,7 @@ Controller::Controller(QObject *parent)
   _recorder->moveToThread(&_recorderThread);
 
   connect(this, &Controller::startRecording, _recorder, &Recorder::startRecording);
+  connect(this, &Controller::startRecording, _recorder, &Recorder::startRecording);
   connect(this, &Controller::stopRecording, _recorder, &Recorder::stopRecording);
   connect(this, &Controller::generateScore, _lilypond, &Lilypond::generateScore);
   connect(_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
@@ -53,6 +54,8 @@ void Controller::openScore()
   _lilypond->setScore(scoreNotes);
   _recorder->setScore(scoreNotes);
   setScoreLength(scoreNotes.size());
+
+  qInfo() << scoreNotes;
 
   emit generateScore();
 }
@@ -292,4 +295,11 @@ void Controller::updateCurrentPage()
     _currentPage = page + 1;
     emit currentPageChanged(_currentPage);
   }
+}
+
+void Controller::resetPageAndPosition()
+{
+  setPlayedNotes(0);
+  _currentPage = 1;
+  emit currentPageChanged(1);
 }

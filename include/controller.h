@@ -69,6 +69,7 @@ private:
   void initializeIndicatorSettings();
   void calculateIndicatorYs();
   void updateCurrentPage();
+  void resetPageAndPosition();
 
   // -----
   QVector<int> _indicatorXs;

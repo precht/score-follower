@@ -82,7 +82,7 @@ void Recorder::initializeMinimalConfidence()
         continue;
       if (noteNumber != _minimalConfidence.size())
         qDebug() << "Wrong note number in input file: " << _notesConfidenceFileName;
-      _minimalConfidence.push_back(noteConfidence * _minimalConfidenceCoefficient);
+      _minimalConfidence.push_back(noteConfidence * _minimalConfidenceCoefficient + _minimalConfidenceShift);
     }
     confidenceFile.close();
   } else {
@@ -230,11 +230,17 @@ void Recorder::processBuffer(const QAudioBuffer buffer)
   _spectrumCalculator->compute();
   _pitchDetector->compute();
 
-  if (_currentPitch < _notesBoundry[_noteNumber].first || _currentPitch > _notesBoundry[_noteNumber].second)
-    _noteNumber = findNoteFromPitch(_currentPitch);
+  if (_currentPitch < _notesBoundry[_noteNumber].first || _currentPitch > _notesBoundry[_noteNumber].second) {
+    int newNoteNumber = findNoteFromPitch(_currentPitch);
 
-  if (_currentConfidence >= _minimalConfidence[_noteNumber])
-    calculatePosition();
+    if (_currentConfidence >= _minimalConfidence[newNoteNumber]) {
+      _noteNumber = newNoteNumber;
+      calculatePosition();
+      qInfo() << "note" << newNoteNumber;
+    } else {
+      qInfo() << "note" << newNoteNumber << "skipped" << _currentConfidence << _minimalConfidence[newNoteNumber];
+    }
+  }
 
   _audio.erase(_audio.begin(), _audio.begin() + _essentiaHopSize);
 }

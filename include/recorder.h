@@ -80,10 +80,11 @@ private:
 
   // essentia
   const int _sampleRate = 480 * 100; // 100 buffers per second, 480 samples per buffer
-  const uint _essentiaFrameSize = 480 * 20;
-  const int _essentiaHopSize = 480 * 5;
+  const uint _essentiaFrameSize = 480 * 18;
+  const int _essentiaHopSize = 480 * 3;
 
-  const float _minimalConfidenceCoefficient = 0.95f;
+  const float _minimalConfidenceCoefficient = 0.9f;
+  const float _minimalConfidenceShift = -0.1f;
   QVector<float> _minimalConfidence;
 
   const int64_t _infinity = std::numeric_limits<int64_t>::max();
