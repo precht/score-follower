@@ -15,17 +15,19 @@ class Controller : public QObject
   Q_PROPERTY(int indicatorWidth READ indicatorWidth WRITE setIndicatorWidth NOTIFY indicatorWidthChanged)
   Q_PROPERTY(int indicatorHeight READ indicatorHeight WRITE setIndicatorHeight NOTIFY indicatorHeightChanged)
   Q_PROPERTY(int playedNotes READ playedNotes WRITE setPlayedNotes NOTIFY playedNotesChanged)
-  Q_PROPERTY(int notesPerPage READ notesPerPage NOTIFY notesPerPageChanged)
   Q_PROPERTY(int pagesNumber READ pagesNumber WRITE setPagesNumber NOTIFY pagesNumberChanged)
   Q_PROPERTY(double indicatorScale READ indicatorScale WRITE setIndicatorScale NOTIFY indicatorScaleChanged)
+  Q_PROPERTY(int scoreLength READ scoreLength WRITE setScoreLength NOTIFY scoreLengthChanged)
+  Q_PROPERTY(int currentPage READ currentPage NOTIFY currentPageChanged)
 
 public:
   explicit Controller(QObject *parent = nullptr);
   ~Controller();
 
   int notesPerPage() const;
-
   int pagesNumber() const;
+  int scoreLength() const;
+  int currentPage() const;
 
 public slots:
   int indicatorX(int index);
@@ -44,8 +46,8 @@ public slots:
   void setPlayedNotes(int playedNotes);
   double indicatorScale() const;
   void setIndicatorScale(double indicatorScale);
-
   void setPagesNumber(int pagesNumber);
+  void setScoreLength(int scoreLength);
 
 signals:
   void updateScore();
@@ -59,12 +61,14 @@ signals:
   void playedNotesChanged(int playedNotes);
   void indicatorScaleChanged();
   void notesPerPageChanged(int notesPerPage);
-
   void pagesNumberChanged(int pagesNumber);
+  void scoreLengthChanged(int scoreLength);
+  void currentPageChanged(int currentPage);
 
 private:
   void initializeIndicatorSettings();
   void calculateIndicatorYs();
+  void updateCurrentPage();
 
   // -----
   QVector<int> _indicatorXs;
@@ -79,7 +83,6 @@ private:
   int _staffIndent = 0;
   int _pagesNumber;
 
-  const int _notesPerPage = 32;
   const int scoreGenerateInterval = 250; // in ms
   const QString _indicatorSettingsFileName = ":/other/indicator-settings";
   QString _scoreFileName = ":/other/score";
@@ -91,6 +94,8 @@ private:
   Recorder *_recorder = nullptr;
   QThread _lilypondThread;
   QThread _recorderThread;
+  int _scoreLength;
+  int _currentPage;
 };
 
 

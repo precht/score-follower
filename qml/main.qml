@@ -126,8 +126,8 @@ ApplicationWindow {
         anchors.verticalCenter: parent.verticalCenter;
         textRole: "display"; // have to set role to work with custom model
         model: devicesModel;
-        enabled: !controller.follow;
-//        enabled: false;
+//        enabled: !controller.follow;
+        enabled: false;
         onActivated: {
           focus = false;
           setDevice(deviceBox.currentText);

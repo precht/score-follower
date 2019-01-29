@@ -22,9 +22,11 @@ Controller::Controller(QObject *parent)
   connect(_recorder, &Recorder::levelChanged, [=](float level){ setLevel(level); });
   connect(_lilypond, &Lilypond::finishedGeneratingScore,
           [=](int pagesCount){
+    _currentPage = 1;
     setPagesNumber(pagesCount);
     calculateIndicatorYs();
     emit updateScore();
+    emit currentPageChanged(1);
   });
 
   connect(&_timer, &QTimer::timeout, [=](){ emit generateScore(); });
@@ -50,6 +52,8 @@ void Controller::openScore()
   QVector<int> scoreNotes = ScoreReader::readScoreFile(_scoreFileName);
   _lilypond->setScore(scoreNotes);
   _recorder->setScore(scoreNotes);
+  setScoreLength(scoreNotes.size());
+
   emit generateScore();
 }
 
@@ -64,6 +68,7 @@ void Controller::setPlayedNotes(int playedNotes)
     return;
 
   _playedNotes = playedNotes;
+  updateCurrentPage();
   emit playedNotesChanged(playedNotes);
 }
 
@@ -180,11 +185,13 @@ void Controller::setLevel(float level)
 void Controller::calculateIndicatorYs()
 {
   _indicatorYs.clear();
-  for (int i = 1;; i++) {
+  for (int i = 1; i <= _pagesNumber; i++) {
     QString pageFileName = _scoreImagePath + "-page" + QString::number(i) + ".png";
     QFileInfo checkFile(pageFileName);
-    if (!checkFile.exists() || !checkFile.isFile())
+    if (!checkFile.exists() || !checkFile.isFile()) {
+      qWarning() << "Score file does not exists: " << pageFileName;
       break;
+    }
 
     _indicatorYs.push_back({ });
 
@@ -221,27 +228,38 @@ int Controller::indicatorX(int index)
 
 int Controller::indicatorY(int index)
 {
-  // TODO support for multiple pages
   if (_indicatorXs.size() == 0 || _indicatorYs.size() == 0) {
     qWarning() << "Empty indicator vectors";
     return 0;
   }
+
+  int page = 0;
+  while (page < _pagesNumber && index >= _indicatorYs[page].size() * _indicatorXs.size()) {
+    index -= _indicatorYs[page].size() * _indicatorXs.size();
+    page++;
+  }
+
   int y = index / _indicatorXs.size();
-  if (y < 0 || y >= _indicatorYs.front().size()) {
-//    qWarning() << "wrong indicator y index:" << index;
+  if (y < 0 || y >= _indicatorYs[page].size()) {
+    qWarning() << "wrong indicator y index:" << index;
     return 0;
   }
-  return _indicatorYs.front()[y];
-}
-
-int Controller::notesPerPage() const
-{
-  return _notesPerPage;
+  return _indicatorYs[page][y];
 }
 
 int Controller::pagesNumber() const
 {
   return _pagesNumber;
+}
+
+int Controller::scoreLength() const
+{
+  return _scoreLength;
+}
+
+int Controller::currentPage() const
+{
+  return _currentPage;
 }
 
 void Controller::setPagesNumber(int pagesNumber)
@@ -251,4 +269,27 @@ void Controller::setPagesNumber(int pagesNumber)
 
   _pagesNumber = pagesNumber;
   emit pagesNumberChanged(_pagesNumber);
+}
+
+void Controller::setScoreLength(int scoreLength)
+{
+  if (_scoreLength == scoreLength)
+    return;
+
+  _scoreLength = scoreLength;
+  emit scoreLengthChanged(_scoreLength);
+}
+
+void Controller::updateCurrentPage()
+{
+  int index = _playedNotes;
+  int page = 0;
+  while (page < _pagesNumber && index > _indicatorYs[page].size() * _indicatorXs.size()) {
+    index -= _indicatorYs[page].size() * _indicatorXs.size();
+    page++;
+  }
+  if (page + 1!= _currentPage) {
+    _currentPage = page + 1;
+    emit currentPageChanged(_currentPage);
+  }
 }

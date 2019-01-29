@@ -2,19 +2,17 @@ import QtQuick 2.0
 import QtQuick.Layouts 1.3
 
 Item {
-  property int currentPage: 0;
   property int imageWidth: 932;
   property int imageHeight: 661;
 
   function updateScore() {
-    currentPage = 1;
     updatePage();
-    createIndicators(32);
+    createIndicators(controller.scoreLength);
   }
 
   function updatePage() {
     scoreImage.source = "";
-    scoreImage.source = "file:///tmp/score-follower/score-page" + currentPage + ".png";
+    scoreImage.source = "file:///tmp/score-follower/score-page" + controller.currentPage + ".png";
   }
 
   function createIndicators(count) {
@@ -31,13 +29,7 @@ Item {
   Connections {
     target: controller;
     onUpdateScore: updateScore();
-    onPlayedNotesChanged: {
-      var page = controller.playedNotes / controller.notesPerPage + 1;
-      if (page != currentPage && page <= controller.pagesNumber) {
-        currentPage = page;
-        updatePage();
-      }
-    }
+    onCurrentPageChanged: updatePage();
   }
 
   // ------------------------- Layout -------------------------

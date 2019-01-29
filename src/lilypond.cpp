@@ -39,11 +39,25 @@ void Lilypond::generateScore()
   QTextStream out(&lilypondFile);
   out << _header;
   int index = 0;
+//  bool isBassClef = false;
   for (; index < _scoreNotes.size(); index++) {
-    if (index % _notesPerLine == 0 && index > 0) // break line
+    if (index % _notesPerLine == 0 && index > 0) {
       out << "\\break\n";
-//    if (index == _numberOfPlayedNotes) // change color
-//      out << _colorChanger;
+    }
+    // switch bass and tremble clef
+//    if (index % _notesPerLine == 0) {
+//      bool isLowNote = false;
+//      for (int j = 0; j < _notesPerLine && index + j < _scoreNotes.size(); j++)
+//        if (_scoreNotes[index + j] < 48)
+//          isLowNote = true;
+//      if (isLowNote && !isBassClef) {
+//        out << "\\clef bass ";
+//        isBassClef = true;
+//      } else if (!isLowNote && isBassClef) {
+//        out << "\\clef treble ";
+//        isBassClef = false;
+//      }
+//    }
     out << _notes[_scoreNotes[index]];
     if (index == 0) // set length of first note (rest will follow)
       out << 1;
@@ -132,9 +146,4 @@ int Lilypond::countPages()
   dir.setNameFilters(QStringList() << "*.png");
   dir.setFilter(QDir::Files);
   return (dir.entryList().size() - 1);
-}
-
-QVector<QVector<int> > Lilypond::indicatorYs() const
-{
-  return _indicatorYs;
 }

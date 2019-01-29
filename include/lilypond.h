@@ -16,7 +16,6 @@ public:
 
 public slots:
   void generateScore();
-  QVector<QVector<int>> indicatorYs() const;
 
 signals:
   void finishedGeneratingScore(int pagesNumber);
@@ -26,7 +25,6 @@ private:
    * @brief Load header, footer and color changer files use to create lilypond input file.
    */
   void loadFiles();
-  void calculateIndicatorYPositions();
   int countPages();
 
   // -----
@@ -50,7 +48,6 @@ private:
   QHash<int, QString> _notes;
 
   QVector<int> _scoreNotes;
-  QVector<QVector<int>> _indicatorYs;
 };
 
 
