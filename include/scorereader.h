@@ -1,3 +1,5 @@
+// Author:  Jakub Precht
+
 #ifndef SCOREREADER_H
 #define SCOREREADER_H
 

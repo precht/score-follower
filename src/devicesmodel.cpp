@@ -1,8 +1,12 @@
-#include "include/devicesmodel.h"
-#include <QDebug>
+// Author:  Jakub Precht
 
+#include "devicesmodel.h"
+
+#include <QDebug>
 #include <QAudioDeviceInfo>
 #include <QAudioRecorder>
+
+// TODO make it work
 
 DevicesModel::DevicesModel(QObject *parent)
   : QAbstractListModel(parent)

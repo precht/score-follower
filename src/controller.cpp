@@ -1,5 +1,9 @@
+// Author:  Jakub Precht
+
 #include "controller.h"
 #include "scorereader.h"
+#include "settings.h"
+
 #include <QDebug>
 #include <QVector>
 #include <QTimer>
@@ -10,7 +14,12 @@
 Controller::Controller(QObject *parent)
   : QObject(parent), _lilypond(new Lilypond()), _recorder(new Recorder())
 {
-  initializeIndicatorSettings();
+  Settings *settings = new Settings();
+  _status = settings->readSettings();
+  _settings = settings;
+  _lilypond->setSettings(settings);
+  _recorder->setSettings(settings);
+  _status &= _recorder->initialize();
 
   _lilypond->moveToThread(&_lilypondThread);
   _recorder->moveToThread(&_recorderThread);
@@ -21,13 +30,13 @@ Controller::Controller(QObject *parent)
   connect(this, &Controller::generateScore, _lilypond, &Lilypond::generateScore);
   connect(_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
   connect(_recorder, &Recorder::levelChanged, [=](float level){ setLevel(level); });
-  connect(_lilypond, &Lilypond::finishedGeneratingScore,
-          [=](int pagesCount){
+
+  connect(_lilypond, &Lilypond::finishedGeneratingScore, [=](int pagesCount, QVector<QVector<int>> indicatorYs){
     _currentPage = 1;
+    _indicatorYs = indicatorYs;
     setPagesNumber(pagesCount);
-    calculateIndicatorYs();
+    emit currentPageChanged();
     emit updateScore();
-    emit currentPageChanged(1);
   });
 
   connect(&_timer, &QTimer::timeout, [=](){ emit generateScore(); });
@@ -43,21 +52,26 @@ Controller::~Controller()
   QThread::msleep(100);
 }
 
-void Controller::openScore()
+bool Controller::createdSuccessfully() const
 {
-  _scoreFileName = QFileDialog::getOpenFileName(nullptr, "Open Image",
-                                                QStandardPaths::writableLocation(QStandardPaths::MusicLocation));
-  if (_scoreFileName == "")
-    return ;
+  return _status;
+}
 
-  QVector<int> scoreNotes = ScoreReader::readScoreFile(_scoreFileName);
+bool Controller::openScore()
+{
+  _toOpenFilename = QFileDialog::getOpenFileName(nullptr, "Open Score",
+                                                 QStandardPaths::writableLocation(QStandardPaths::MusicLocation),
+                                                 "Score Files (*.txt *.mid);; All Files (*.*)");
+  if (_toOpenFilename == "")
+    return false;
+
+  QVector<int> scoreNotes = ScoreReader::readScoreFile(_toOpenFilename);
   _lilypond->setScore(scoreNotes);
   _recorder->setScore(scoreNotes);
   setScoreLength(scoreNotes.size());
 
-  qInfo() << scoreNotes;
-
   emit generateScore();
+  return true;
 }
 
 int Controller::playedNotes() const
@@ -72,29 +86,17 @@ void Controller::setPlayedNotes(int playedNotes)
 
   _playedNotes = playedNotes;
   updateCurrentPage();
-  emit playedNotesChanged(playedNotes);
+  emit playedNotesChanged();
 }
 
 int Controller::indicatorHeight() const
 {
-  return _indicatorHeight;
-}
-
-void Controller::setIndicatorHeight(int indicatorHeight)
-{
-  _indicatorHeight = indicatorHeight;
-  emit indicatorHeightChanged();
+  return _settings->indicatorHeight();
 }
 
 int Controller::indicatorWidth() const
 {
-  return _indicatorWidth;
-}
-
-void Controller::setIndicatorWidth(int indicatorWidth)
-{
-  _indicatorWidth = indicatorWidth;
-  emit indicatorWidthChanged();
+  return _settings->indicatorWidth();
 }
 
 double Controller::indicatorScale() const
@@ -108,52 +110,6 @@ void Controller::setIndicatorScale(double indicatorScale)
   emit indicatorScaleChanged();
 }
 
-void Controller::initializeIndicatorSettings()
-{
-  QFile settingsFile(_indicatorSettingsFileName);
-  if (settingsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QTextStream in(&settingsFile);
-    int x;
-    if (!in.atEnd()) {
-      in >> x;
-      setIndicatorWidth(x);
-    }
-    if (!in.atEnd()) {
-      in >> x;
-      setIndicatorHeight(x);
-    }
-    if (!in.atEnd()) {
-      in >> x;
-      _staffIndent = x;
-    }
-    if (!in.atEnd()) {
-      in >> x;
-      _indicatorXs.fill(0, x);
-    }
-    if (!in.atEnd()) {
-      in >> x;
-      //      _indicatorYs.fill(0, x);
-      // TODO for each page?
-    }
-    int index = 0;
-    for (; index < _indicatorXs.size() && !in.atEnd(); index++)
-      in >> _indicatorXs[index];
-
-    if (index != _indicatorXs.size()) {
-      qWarning() << "Wrong number of indicator positions in file:" << _indicatorSettingsFileName;
-    }
-    settingsFile.close();
-  } else {
-    qDebug() << "Failed to open: " << _indicatorSettingsFileName;
-  }
-
-  if (_indicatorXs.size() > 1) {
-    int shift = (_indicatorXs[1] - _indicatorXs[0]) / 2;
-    for (auto &x : _indicatorXs)
-      x += shift;
-  }
-}
-
 bool Controller::follow() const
 {
   return _follow;
@@ -161,14 +117,14 @@ bool Controller::follow() const
 
 void Controller::setFollow(bool follow)
 {
-  _follow = follow;
+  if (_follow == follow)
+    return;
 
+  _follow = follow;
   if (follow == true) {
     emit startRecording();
-    //    _timer.start(scoreGenerateInterval);
   } else {
     emit stopRecording();
-    //    _timer.stop();
   }
 
   emit followChanged();
@@ -185,64 +141,29 @@ void Controller::setLevel(float level)
   emit levelChanged();
 }
 
-void Controller::calculateIndicatorYs()
-{
-  _indicatorYs.clear();
-  for (int i = 1; i <= _pagesNumber; i++) {
-    QString pageFileName = _scoreImagePath + "-page" + QString::number(i) + ".png";
-    QFileInfo checkFile(pageFileName);
-    if (!checkFile.exists() || !checkFile.isFile()) {
-      qWarning() << "Score file does not exists: " << pageFileName;
-      break;
-    }
-
-    _indicatorYs.push_back({ });
-
-    QImage image(pageFileName);
-    bool lastWasWhite = true;
-    int counter = 0;
-
-    for (int y = 0; y < image.height(); y++) {
-      QRgb *line = (QRgb *) image.scanLine(y);
-      QColor col(line[_staffIndent]);
-
-      if(col == Qt::white) {
-        lastWasWhite = true;
-      } else {
-        if (!lastWasWhite)
-          continue;
-        lastWasWhite = false;
-        if (counter == 0)
-          _indicatorYs.back().push_back(y);
-        counter = (counter + 1) % 5;
-      }
-    }
-  }
-}
-
 int Controller::indicatorX(int index)
 {
-  if (index < 0 || _indicatorXs.size() == 0) {
+  if (index < 0 || _settings->indicatorXs().size() == 0) {
     qWarning() << "wrong indicator x index or empty x indicator vector";
     return 0;
   }
-  return _indicatorXs[index % _indicatorXs.size()];
+  return _settings->indicatorXs()[index % _settings->indicatorXs().size()];
 }
 
 int Controller::indicatorY(int index)
 {
-  if (_indicatorXs.size() == 0 || _indicatorYs.size() == 0) {
+  if (_settings->indicatorXs().size() == 0 || _indicatorYs.size() == 0) {
     qWarning() << "Empty indicator vectors";
     return 0;
   }
 
   int page = 0;
-  while (page < _pagesNumber && index >= _indicatorYs[page].size() * _indicatorXs.size()) {
-    index -= _indicatorYs[page].size() * _indicatorXs.size();
+  while (page < _pagesNumber && index >= _indicatorYs[page].size() * _settings->indicatorXs().size()) {
+    index -= _indicatorYs[page].size() * _settings->indicatorXs().size();
     page++;
   }
 
-  int y = index / _indicatorXs.size();
+  int y = index / _settings->indicatorXs().size();
   if (y < 0 || y >= _indicatorYs[page].size()) {
     qWarning() << "wrong indicator y index:" << index;
     return 0;
@@ -271,7 +192,7 @@ void Controller::setPagesNumber(int pagesNumber)
     return;
 
   _pagesNumber = pagesNumber;
-  emit pagesNumberChanged(_pagesNumber);
+  emit pagesNumberChanged();
 }
 
 void Controller::setScoreLength(int scoreLength)
@@ -280,20 +201,20 @@ void Controller::setScoreLength(int scoreLength)
     return;
 
   _scoreLength = scoreLength;
-  emit scoreLengthChanged(_scoreLength);
+  emit scoreLengthChanged();
 }
 
 void Controller::updateCurrentPage()
 {
   int index = _playedNotes;
   int page = 0;
-  while (page < _pagesNumber && index > _indicatorYs[page].size() * _indicatorXs.size()) {
-    index -= _indicatorYs[page].size() * _indicatorXs.size();
+  while (page < _pagesNumber && index > _indicatorYs[page].size() * _settings->indicatorXs().size()) {
+    index -= _indicatorYs[page].size() * _settings->indicatorXs().size();
     page++;
   }
   if (page + 1!= _currentPage) {
     _currentPage = page + 1;
-    emit currentPageChanged(_currentPage);
+    emit currentPageChanged();
   }
 }
 
@@ -301,5 +222,5 @@ void Controller::resetPageAndPosition()
 {
   setPlayedNotes(0);
   _currentPage = 1;
-  emit currentPageChanged(1);
+  emit currentPageChanged();
 }

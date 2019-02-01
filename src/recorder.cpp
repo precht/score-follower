@@ -1,15 +1,14 @@
-#include "include/recorder.h"
+// Author:  Jakub Precht
+
+#include "recorder.h"
+#include "settings.h"
+
 #include <QThread>
 #include <QUrl>
-#include <QIODevice>
 #include <qendian.h>
+#include <QDateTime>
 
 #include <essentia/algorithmfactory.h>
-#include <essentia/pool.h>
-#include <QDateTime>
-#include <limits>
-#include <numeric>
-//#include <iostream>
 
 using namespace essentia;
 using namespace standard;
@@ -18,13 +17,15 @@ Recorder::Recorder(QObject *parent)
   : QObject(parent)
 {
   essentia::init();
-  initializeNotes();
-  initializeMinimalConfidence();
+}
+
+bool Recorder::initialize()
+{
+  initializePitchDetector();
 
   _recorder = new QAudioRecorder(this);
-
   _recorderSettings.setChannelCount(1);
-  _recorderSettings.setSampleRate(_sampleRate);
+  _recorderSettings.setSampleRate(_settings->sampleRate());
   _recorder->setEncodingSettings(_recorderSettings);
   _recorder->setOutputLocation(QString("/dev/null"));
 
@@ -33,73 +34,24 @@ Recorder::Recorder(QObject *parent)
   _probe->setSource(_recorder);
 
   _recorder->record();
-}
-
-void Recorder::initializeNotes()
-{
-  _notesFrequency.clear();
-  _notesBoundry.clear();
-
-  QFile notesFile(_notesFrequencyFileName);
-  if (notesFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QTextStream in(&notesFile);
-    int noteNumber;
-    float noteFrequency;
-    while (!in.atEnd()) {
-      in >> noteNumber >> noteFrequency;
-      if (noteNumber == 0 && noteFrequency == 0.f)
-        continue;
-      if (noteNumber != _notesFrequency.size())
-        qDebug() << "Wrong note number in input file: " << _notesFrequencyFileName;
-      _notesFrequency.push_back(noteFrequency);
-    }
-    notesFile.close();
+  if (_recorder->state() != QAudioRecorder::RecordingState) {
+    qWarning().nospace() << "Failed to create audio input device. Propably unsupported sample rate "
+                         << _settings->sampleRate() << ".";
+    return false;
   } else {
-    qDebug() << "Failed to open: " << _notesFrequencyFileName;
-  }
-
-  float lastBoundry = 0;
-  for (int i = 1; i < _notesFrequency.size(); i++) {
-    float boundry = (_notesFrequency[i - 1] + _notesFrequency[i]) / 2;
-    _notesBoundry.push_back({ lastBoundry, boundry });
-    lastBoundry = boundry;
-  }
-  _notesBoundry.push_back({ lastBoundry, std::numeric_limits<float>::max() });
-}
-
-void Recorder::initializeMinimalConfidence()
-{
-  _minimalConfidence.clear();
-
-  QFile confidenceFile(_notesConfidenceFileName);
-  if (confidenceFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QTextStream in(&confidenceFile);
-    int noteNumber;
-    float noteConfidence;
-    while (!in.atEnd()) {
-      in >> noteNumber >> noteConfidence;
-      if (noteNumber == 0 && noteConfidence == 0.f)
-        continue;
-      if (noteNumber != _minimalConfidence.size())
-        qDebug() << "Wrong note number in input file: " << _notesConfidenceFileName;
-      _minimalConfidence.push_back(noteConfidence * _minimalConfidenceCoefficient + _minimalConfidenceShift);
-    }
-    confidenceFile.close();
-  } else {
-    qDebug() << "Failed to open: " << _notesConfidenceFileName;
+    return true;
   }
 }
 
-void Recorder::initializePitchDetector(int bufferFrameSize, int bufferSampleRate)
+void Recorder::initializePitchDetector()
 {
-  _bufferSize = bufferFrameSize;
-  _bufferSampleRate = bufferSampleRate;
-
   AlgorithmFactory& factory = AlgorithmFactory::instance();
 
   _windowCalculator = factory.create("Windowing", "type", "hann", "zeroPadding", 0);
-  _spectrumCalculator = factory.create("Spectrum", "size", bufferFrameSize);
-  _pitchDetector = factory.create("PitchYinFFT", "frameSize", bufferFrameSize, "sampleRate", bufferSampleRate);
+  _spectrumCalculator = factory.create("Spectrum", "size", _settings->frameSize());
+  _pitchDetector = factory.create("PitchYinFFT",
+                                  "frameSize", _settings->frameSize(),
+                                  "sampleRate", _settings->sampleRate());
 
   _windowCalculator->input("frame").set(_audio);
   _windowCalculator->output("frame").set(_windowedframe);
@@ -110,6 +62,11 @@ void Recorder::initializePitchDetector(int bufferFrameSize, int bufferSampleRate
   _pitchDetector->input("spectrum").set(_spectrum);
   _pitchDetector->output("pitch").set(_currentPitch);
   _pitchDetector->output("pitchConfidence").set(_currentConfidence);
+}
+
+void Recorder::setSettings(const Settings *settings)
+{
+  _settings = settings;
 }
 
 void Recorder::setMaxAmplitude(const QAudioFormat &format)
@@ -159,8 +116,7 @@ void Recorder::setMaxAmplitude(const QAudioFormat &format)
   default:
     break;
   }
-
-  //  _maxAmplitude /= 2;
+  _maxAmplitude /= 2;
 }
 
 void Recorder::setScore(const QVector<int> &scoreNotes)
@@ -173,12 +129,13 @@ void Recorder::setScore(const QVector<int> &scoreNotes)
 
 int Recorder::findNoteFromPitch(float pitch)
 {
-  int beg = 0, end = _notesBoundry.size() - 1;
+  auto &notesBoundry = _settings->notesFrequencyBoundry();
+  int beg = 0, end = notesBoundry.size() - 1;
   while (beg < end) {
     int m = (beg + end) / 2;
-    if (_notesBoundry[m].second < pitch)
+    if (notesBoundry[m].second < pitch)
       beg = m + 1;
-    else if (_notesBoundry[m].first > pitch)
+    else if (notesBoundry[m].first > pitch)
       end = m - 1;
     else
       beg = end = m;
@@ -210,11 +167,10 @@ void Recorder::stopRecording()
 
 void Recorder::processBuffer(const QAudioBuffer buffer)
 {
-//  qInfo() << QDateTime::currentDateTime() << buffer.sampleCount();
+  //  qInfo() << QDateTime::currentDateTime() << buffer.sampleCount();
 
   if (buffer.format() != _currentFormat) {
     _currentFormat = buffer.format();
-    initializePitchDetector(buffer.sampleCount(), buffer.format().sampleRate());
     setMaxAmplitude(buffer.format());
   }
 
@@ -223,26 +179,29 @@ void Recorder::processBuffer(const QAudioBuffer buffer)
     return;
 
   convertBufferToAudio(buffer);
-  if (_audio.size() < _essentiaFrameSize)
+  if (_audio.size() < static_cast<size_t>(_settings->frameSize()))
     return;
 
   _windowCalculator->compute();
   _spectrumCalculator->compute();
   _pitchDetector->compute();
 
-  if (_currentPitch < _notesBoundry[_noteNumber].first || _currentPitch > _notesBoundry[_noteNumber].second) {
+  auto &notesBoundry = _settings->notesFrequencyBoundry();
+  if (_currentPitch < notesBoundry[_noteNumber].first || _currentPitch > notesBoundry[_noteNumber].second) {
     int newNoteNumber = findNoteFromPitch(_currentPitch);
 
-    if (_currentConfidence >= _minimalConfidence[newNoteNumber]) {
+    if (_currentConfidence >= _settings->minimalConfidence()[newNoteNumber]) {
       _noteNumber = newNoteNumber;
       calculatePosition();
-      qInfo() << "note" << newNoteNumber;
-    } else {
-      qInfo() << "note" << newNoteNumber << "skipped" << _currentConfidence << _minimalConfidence[newNoteNumber];
+      qInfo().nospace() << "Detected note " << newNoteNumber << ".";
     }
+//    else {
+//      qInfo().nospace() << "Note " << newNoteNumber << " skipped (" << _currentConfidence << " < "
+//                        << _settings->minimalConfidence()[newNoteNumber] << ").";
+//    }
   }
 
-  _audio.erase(_audio.begin(), _audio.begin() + _essentiaHopSize);
+  _audio.erase(_audio.begin(), _audio.begin() + _settings->hopSize());
 }
 
 void Recorder::updateLevel(const QAudioBuffer &buffer)
@@ -269,7 +228,7 @@ void Recorder::updateLevel(const QAudioBuffer &buffer)
 
   _levelCount++;
   if (_levelCount == _maxLevelCount) {
-    emit levelChanged(_level / (_maxLevelCount >> 2));
+    emit levelChanged(_level / _maxLevelCount);
     _level = 0;
     _levelCount = 0;
   }
@@ -312,8 +271,6 @@ void Recorder::resetDtw()
 {
   _position = -1;
   _dtwRow.fill(0);
-  //  for (int i = 0; i < _dtwRow.size(); i++)
-  //    _dtwRow[i] = i;
 }
 
 void Recorder::calculatePosition()

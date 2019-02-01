@@ -1,3 +1,5 @@
+// Author:  Jakub Precht
+
 import QtQuick 2.11
 import QtQuick.Layouts 1.3
 import QtQuick.Controls 2.4
@@ -18,10 +20,10 @@ ApplicationWindow {
   // ------------------------- Functions -------------------------
 
   function open() {
-    //    fileDialog.visible = true;
+    //  fileDialog.visible = true;
+
     controller.playedNotes = 0;
-    controller.openScore();
-    isLoading = true;
+    isLoading = controller.openScore();
   }
 
   function start() {
@@ -62,9 +64,9 @@ ApplicationWindow {
 
   header: ToolBar {
     id: toolbar;
-//    height: 50;
+    //    height: 50;
     Row {
-//      height: 40;
+      //      height: 40;
       anchors.verticalCenter: parent.verticalCenter;
       anchors.right: parent.right;
 
@@ -126,7 +128,7 @@ ApplicationWindow {
         anchors.verticalCenter: parent.verticalCenter;
         textRole: "display"; // have to set role to work with custom model
         model: devicesModel;
-//        enabled: !controller.follow;
+        //        enabled: !controller.follow;
         enabled: false;
         onActivated: {
           focus = false;
@@ -149,7 +151,7 @@ ApplicationWindow {
           Rectangle {
             height: parent.height-2;
             width: Math.min(controller.level * parent.width, parent.width - 2);
-//            color: "#1abc9c";
+            //            color: "#1abc9c";
             color: "forestgreen"
             anchors.verticalCenter: parent.verticalCenter;
             anchors.left: parent.left;

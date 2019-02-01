@@ -1,3 +1,5 @@
+// Author:  Jakub Precht
+
 import QtQuick 2.0
 import QtQuick.Layouts 1.3
 
@@ -54,8 +56,6 @@ Item {
         width: scoreImage.paintedWidth;
         height: scoreImage.paintedHeight;
         color: "transparent";
-//        border.color: "orange";
-//        border.width: 1;
 
         anchors.centerIn: parent;
         onWidthChanged: {

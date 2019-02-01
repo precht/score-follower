@@ -1,12 +1,13 @@
+// Author:  Jakub Precht
+
 #include "scorereader.h"
+
+#include "MidiFile.h"
+
 #include <QVector>
 #include <QFileInfo>
 #include <QFile>
 #include <QDebug>
-
-#include "MidiFile.h"
-#include <iostream>
-#include <iomanip>
 
 int ScoreReader::_midiNoteOnActionCode = 144;
 

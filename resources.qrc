@@ -10,5 +10,6 @@
         <file>qml/Indicator.qml</file>
         <file>other/indicator-settings</file>
         <file>other/notes-confidence</file>
+        <file>other/settings.json</file>
     </qresource>
 </RCC>

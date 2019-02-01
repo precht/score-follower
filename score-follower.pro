@@ -23,7 +23,8 @@ HEADERS += \
     include/lilypond.h \
     include/recorder.h \
     include/devicesmodel.h \
-    include/scorereader.h
+    include/scorereader.h \
+    include/settings.h
 
 SOURCES += \
     src/main.cpp \
@@ -31,7 +32,8 @@ SOURCES += \
     src/lilypond.cpp \
     src/recorder.cpp \
     src/devicesmodel.cpp \
-    src/scorereader.cpp
+    src/scorereader.cpp \
+    src/settings.cpp
 
 RESOURCES += \
     resources.qrc

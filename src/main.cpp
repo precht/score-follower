@@ -1,3 +1,5 @@
+// Author:  Jakub Precht
+
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -13,7 +15,6 @@
 
 int main(int argc, char *argv[])
 {
-//  qputenv("QT_SCALE_FACTOR", "1.5");
 //  QQuickStyle::setStyle("org.kde.desktop");
   QQuickStyle::setStyle("Default");
 
@@ -22,6 +23,10 @@ int main(int argc, char *argv[])
   QQmlApplicationEngine engine;
 
   Controller controller;
+  if (!controller.createdSuccessfully()) {
+    qCritical() << "Aborting...";
+    return -1;
+  }
   engine.rootContext()->setContextProperty("controller", &controller);
   DevicesModel devicesModel;
   engine.rootContext()->setContextProperty("devicesModel", &devicesModel);

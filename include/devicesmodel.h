@@ -1,3 +1,5 @@
+// Author:  Jakub Precht
+
 #ifndef DEVICESMODEL_H
 #define DEVICESMODEL_H
 

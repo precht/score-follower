@@ -1,149 +1,149 @@
-#include "include/lilypond.h"
+// Author:  Jakub Precht
+
+#include "lilypond.h"
+#include "settings.h"
+
 #include <QProcess>
-#include <QFile>
-#include <QTextStream>
 #include <QDebug>
-#include <QUrl>
 #include <QDir>
-#include <QDirIterator>
 #include <QImage>
 
 Lilypond::Lilypond(QObject *parent)
   : QObject(parent)
-{
-  loadFiles();
-  if (!QDir(_scoreFolderName).exists())
-    QDir().mkdir(_scoreFolderName);
-}
+{ }
 
 void Lilypond::setScore(const QVector<int> &scoreNotes)
 {
   _scoreNotes = scoreNotes;
 }
 
+void Lilypond::setSettings(const Settings *settings)
+{
+  _settings = settings;
+}
+
 void Lilypond::generateScore()
 {
-  // delete old files
-  QDir dir("/tmp/score-follower/");
-  dir.setNameFilters(QStringList() << "*.*");
-  dir.setFilter(QDir::Files);
-  for (auto &dirFile : dir.entryList())
-      dir.remove(dirFile);
+  // create directory
+  const QString directoryPath = _settings->lilypondWorkingDirectory();
+  if (!QDir(directoryPath).exists())
+    QDir().mkdir(directoryPath);
 
-  QFile lilypondFile(_lilypondFileName);
+  // delete old files
+  QDir directory(directoryPath);
+  directory.setNameFilters(QStringList() << "*.*");
+  directory.setFilter(QDir::Files);
+  for (auto &dirFile : directory.entryList())
+    directory.remove(dirFile);
+
+  QFile lilypondFile(directoryPath + "score.ly");
   if (!lilypondFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-    qDebug() << "Failed to open: " << _lilypondFileName;
-    emit finishedGeneratingScore(0);
+    qDebug() << "Failed to open: " << directoryPath + "score.ly";
+    emit finishedGeneratingScore(0, {});
   }
 
-  QTextStream out(&lilypondFile);
-  out << _header;
+  QTextStream stream(&lilypondFile);
+  stream << _settings->lilypondHeader();
   int index = 0;
-//  bool isBassClef = false;
+  const int notesPerStaff = _settings->notesPerStaff();
+  //bool isBassClef = false;
+  auto &notation = _settings->lilypondNotesNotation();
   for (; index < _scoreNotes.size(); index++) {
-    if (index % _notesPerLine == 0 && index > 0) {
-      out << "\\break\n";
+    if (index % notesPerStaff == 0 && index > 0) {
+      stream << "\\break\n";
     }
     // switch bass and tremble clef
-//    if (index % _notesPerLine == 0) {
-//      bool isLowNote = false;
-//      for (int j = 0; j < _notesPerLine && index + j < _scoreNotes.size(); j++)
-//        if (_scoreNotes[index + j] < 48)
-//          isLowNote = true;
-//      if (isLowNote && !isBassClef) {
-//        out << "\\clef bass ";
-//        isBassClef = true;
-//      } else if (!isLowNote && isBassClef) {
-//        out << "\\clef treble ";
-//        isBassClef = false;
-//      }
-//    }
-    out << _notes[_scoreNotes[index]];
+    //if (index % _settings->notesPerStaff() == 0) {
+    //  bool isLowNote = false;
+    //  for (int j = 0; j < notesPerStaff && index + j < _scoreNotes.size(); j++)
+    //    if (_scoreNotes[index + j] < 48)
+    //      isLowNote = true;
+    //  if (isLowNote && !isBassClef) {
+    //    stream << "\\clef bass ";
+    //    isBassClef = true;
+    //  } else if (!isLowNote && isBassClef) {
+    //    stream << "\\clef treble ";
+    //    isBassClef = false;
+    //  }
+    //}
+    stream << notation[_scoreNotes[index]];
     if (index == 0) // set length of first note (rest will follow)
-      out << 1;
-    out << ' ';
+      stream << 1;
+    stream << ' ';
   }
   // add invisible rests at the end of last line
-  if (index % _notesPerLine != 0) {
+  if (index % notesPerStaff != 0) {
     do {
-      out << "s ";
-    } while (++index % _notesPerLine != 0);
+      stream << "s ";
+    } while (++index % notesPerStaff != 0);
   }
-  out << _footer;
-  out.flush();
+  stream << _settings->lilypondFooter();
+  stream.flush();
   lilypondFile.close();
 
   QProcess *process = new QProcess();
   QStringList config;
   config << "--png";
-  config << "-dresolution=" + QString::number(_dpi);
-  config << "-o" << _scoreFolderName + _scoreFileName;
-  config << _lilypondFileName;
+  config << "-dresolution=" + QString::number(_settings->dpi());
+  config << "-o" << directoryPath + "score";
+  config << directoryPath + "score.ly";
 
   connect(process, qOverload<int>(&QProcess::finished), process, &QProcess::deleteLater);
   connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
           [=](int exitCode, QProcess::ExitStatus exitStatus) {
-    if (exitCode != 0 || exitStatus != QProcess::NormalExit)
-      qInfo() << "lilypond error:" << process->readAllStandardError();
-    emit finishedGeneratingScore(countPages());
+    if (exitCode != 0 || exitStatus != QProcess::NormalExit) {
+      qWarning() << "lilypond error:";
+      qWarning().nospace() << QString::fromStdString(process->readAllStandardError().toStdString());
+    }
+    auto pages = countPages();
+    auto ys = calculateIndicatorYs(pages);
+    emit finishedGeneratingScore(pages, ys);
   });
 
   process->start("/usr/bin/lilypond", config);
 }
 
-void Lilypond::loadFiles()
+int Lilypond::countPages() const
 {
-  // header
-  QFile headerFile(_headerFileName);
-  if (headerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    _header = headerFile.readAll();
-    headerFile.close();
-  } else {
-    qDebug() << "Failed to open: " << _headerFileName;
-  }
-
-  // footer
-  QFile footerFile(_footerFileName);
-  if (footerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    _footer = footerFile.readAll();
-    footerFile.close();
-  } else {
-    qDebug() << "Failed to open: " << _footerFileName;
-  }
-
-  // color changer
-  QFile colorChangerFile(_colorChangerFileName);
-  if (colorChangerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    _colorChanger = colorChangerFile.readAll();
-    colorChangerFile.close();
-  } else {
-    qDebug() << "Failed to open: " << _colorChangerFileName;
-  }
-
-  // notes lilypond
-  QFile notesFile(_notesFileName);
-  if (notesFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QTextStream notesInput(&notesFile);
-    int noteNumber;
-    QString noteString;
-    _notes.clear();
-    while (!notesInput.atEnd()) {
-      notesInput >> noteNumber >> noteString;
-      if (!noteString.isEmpty()) {
-        _notes[noteNumber] = noteString;
-        // qInfo() << noteNumber << noteString;
-      }
-    }
-    notesFile.close();
-  } else {
-    qDebug() << "Failed to open: " << _notesFileName;
-  }
-}
-
-int Lilypond::countPages()
-{
-  QDir dir("/tmp/score-follower/");
+  QDir dir(_settings->lilypondWorkingDirectory());
   dir.setNameFilters(QStringList() << "*.png");
   dir.setFilter(QDir::Files);
   return (dir.entryList().size() - 1);
+}
+
+QVector<QVector<int> > Lilypond::calculateIndicatorYs(int pagesNumber) const
+{
+  QVector<QVector<int>> indicatorYs;
+  for (int i = 1; i <= pagesNumber; i++) {
+    QString pageFileName = _settings->lilypondWorkingDirectory() + "score-page" + QString::number(i) + ".png";
+    QFileInfo checkFile(pageFileName);
+    if (!checkFile.exists() || !checkFile.isFile()) {
+      qWarning() << "Score file does not exists: " << pageFileName;
+      break;
+    }
+
+    indicatorYs.push_back({}); // new page
+
+    QImage image(pageFileName);
+    bool lastWasWhite = true;
+    int counter = 0;
+    for (int y = image.height(); y >= 0; y--) {
+      QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(y));
+      QColor col(line[_settings->staffIndent()]);
+
+      if(col == Qt::white) {
+        lastWasWhite = true;
+      } else {
+        if (!lastWasWhite)
+          continue;
+        lastWasWhite = false;
+        if (counter == 4)
+          indicatorYs.back().push_back(y);
+        counter = (counter + 1) % 5;
+      }
+    }
+    std::sort(indicatorYs.back().begin(), indicatorYs.back().end());
+  }
+
+  return indicatorYs;
 }
