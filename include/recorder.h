@@ -22,10 +22,11 @@ public:
   void setScore(const QVector<int> &scoreNotes);
   void resetDtw();
   void setSettings(const Settings *settings);
+  void setAudioInput(QString audioInput);
 
 public slots:
-  void startRecording();
-  void stopRecording();
+  void startFollowing();
+  void stopFollowing();
   void processBuffer(const QAudioBuffer buffer);
 
 signals:
@@ -47,7 +48,7 @@ private:
   // recording
 
   const Settings *_settings;
-  bool _isRunning = false;
+  bool _isFollowing = false;
   QTimer *_timer = nullptr;
   QAudioProbe *_probe = nullptr;
   QAudioRecorder *_recorder = nullptr;

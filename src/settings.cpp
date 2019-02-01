@@ -2,7 +2,7 @@
 
 #include "include/settings.h"
 #include <QDebug>
-#include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -11,10 +11,20 @@
 
 bool Settings::readSettings()
 {
+  QString _settingsFilename = QApplication::applicationDirPath() + "/settings.json";
+  QFileInfo checkFile(_settingsFilename);
+  if (checkFile.exists() && checkFile.isFile()) {
+    _status = true;
+    readSettings(_settingsFilename);
+    if (_status)
+      return true;
+  }
+  qInfo().nospace() << "\nFailed to read " << _settingsFilename << ". Using default settings.\n";
+
   _status = true;
-  readSettings(_settingsFilename);
+  readSettings(_defaultSettingsFilename);
   if (!_status)
-    qCritical() << "Failed to read default settings!";
+    qCritical() << "\nFailed to read default settings!\n";
   return _status;
 }
 
@@ -85,7 +95,7 @@ double Settings::readNumber(const QString &name)
   }
 
   if (tmpStatus == false)
-    qWarning() << "Failed to read number" << name << '.';
+    qWarning().nospace() << "Failed to read number " << name << '.';
   _status &= tmpStatus;
   return result;
 }
@@ -94,7 +104,7 @@ QString Settings::readString(const QString &name)
 {
   QJsonValue value = _root.value(name);
   if (!value.isString()) {
-    qWarning() << "Failed to read string" << name << '.';
+    qWarning().nospace() << "Failed to read string " << name << '.';
     _status = false;
     return "";
   }

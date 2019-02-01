@@ -39,7 +39,7 @@ void Lilypond::generateScore()
   QFile lilypondFile(directoryPath + "score.ly");
   if (!lilypondFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
     qDebug() << "Failed to open: " << directoryPath + "score.ly";
-    emit finishedGeneratingScore(0, {});
+    return;
   }
 
   QTextStream stream(&lilypondFile);
@@ -100,6 +100,12 @@ void Lilypond::generateScore()
     emit finishedGeneratingScore(pages, ys);
   });
 
+  QFileInfo checkLilypond("/usr/bin/lilypond");
+  if (!checkLilypond.exists()) {
+    qCritical() << "No file \"/usr/bin/lilypond\". Lilypond may be not installed.";
+    return;
+  }
+
   process->start("/usr/bin/lilypond", config);
 }
 
@@ -137,9 +143,9 @@ QVector<QVector<int> > Lilypond::calculateIndicatorYs(int pagesNumber) const
         if (!lastWasWhite)
           continue;
         lastWasWhite = false;
-        if (counter == 4)
+        if (++counter == 5)
           indicatorYs.back().push_back(y);
-        counter = (counter + 1) % 5;
+        counter %= 5;
       }
     }
     std::sort(indicatorYs.back().begin(), indicatorYs.back().end());

@@ -1,10 +1,10 @@
 // Author:  Jakub Precht
 
-import QtQuick 2.11
+import QtQuick 2.5
 import QtQuick.Layouts 1.3
-import QtQuick.Controls 2.4
+import QtQuick.Controls 2.0
 import QtQuick.Dialogs 1.2
-import QtQuick.Window 2.11
+import QtQuick.Window 2.3
 
 ApplicationWindow {
   // ------------------------- Properties -------------------------
@@ -36,10 +36,6 @@ ApplicationWindow {
 
   function exit() {
     Qt.quit();
-  }
-
-  function setDevice(deviceName) {
-    // TODO
   }
 
   Connections {
@@ -82,7 +78,7 @@ ApplicationWindow {
             focus = false;
         }
       }
-      ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
+      Separator { height: parent.height; width: separatorWidth; }
       Button {
         id: startButton
         width: buttonWidth;
@@ -108,7 +104,7 @@ ApplicationWindow {
             focus = false;
         }
       }
-      ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
+      Separator { height: parent.height; width: separatorWidth; }
       Item {
         width: 20;
         height: parent.height;
@@ -121,21 +117,7 @@ ApplicationWindow {
           radius: 999;
         }
       }
-      ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
-      ComboBox {
-        id: deviceBox;
-        width: comboBoxWidth;
-        anchors.verticalCenter: parent.verticalCenter;
-        textRole: "display"; // have to set role to work with custom model
-        model: devicesModel;
-        //        enabled: !controller.follow;
-        enabled: false;
-        onActivated: {
-          focus = false;
-          setDevice(deviceBox.currentText);
-        }
-      }
-      ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
+      Separator { height: parent.height; width: separatorWidth; }
       Item {
         height: parent.height;
         width: comboBoxWidth;
@@ -159,7 +141,13 @@ ApplicationWindow {
           }
         }
       }
-      ToolSeparator { width: separatorWidth; anchors.verticalCenter: parent.verticalCenter; }
+      Separator { height: parent.height; width: separatorWidth; }
+      Rectangle {
+        height: 1;
+        width: comboBoxWidth;
+        color: "transparent";
+      }
+      Separator { height: parent.height; width: separatorWidth; }
       Button {
         id: exitButton;
         width: buttonWidth;

@@ -6,8 +6,8 @@
                hopSize defines how many samples should be read from input before calling pitch detection again",
 
   "sampleRate": "480 * 100",
-  "frameSize": "480 * 20",
-  "hopSize": "480 * 5",
+  "frameSize": "480 * 18",
+  "hopSize": "480 * 3",
 
   "_comment2": "for each note minimal confidence is calculated in following way: \
                averageConfidence * confidenceCoefficient + confidenceShift",
@@ -44,7 +44,7 @@
     [ 23,  30.8677, 0.480846, "b,,,"      ],
     [ 24,  32.7032, 0.456839, "c,,"       ],
     [ 25,  34.6478, 0.499358, "cis,,"     ],
-    [ 26,  36.7081, 0.539747, "d,,"       ],
+    [ 26,  36.7081, 0.35,     "d,,"       ],
     [ 27,  38.8909, 0.533245, "dis,,"     ],
     [ 28,  41.2034, 0.605649, "e,,"       ],
     [ 29,  43.6535, 0.585429, "f,,"       ],

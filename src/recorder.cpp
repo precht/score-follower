@@ -64,110 +64,9 @@ void Recorder::initializePitchDetector()
   _pitchDetector->output("pitchConfidence").set(_currentConfidence);
 }
 
-void Recorder::setSettings(const Settings *settings)
-{
-  _settings = settings;
-}
-
-void Recorder::setMaxAmplitude(const QAudioFormat &format)
-{
-  switch (format.sampleSize()) {
-  case 8:
-    switch (format.sampleType()) {
-    case QAudioFormat::UnSignedInt:
-      _maxAmplitude = 255;
-      break;
-    case QAudioFormat::SignedInt:
-      _maxAmplitude = 127;
-      break;
-    default:
-      break;
-    }
-    break;
-  case 16:
-    switch (format.sampleType()) {
-    case QAudioFormat::UnSignedInt:
-      _maxAmplitude = 65535;
-      break;
-    case QAudioFormat::SignedInt:
-      _maxAmplitude = 32767;
-      break;
-    default:
-      break;
-    }
-    break;
-
-  case 32:
-    switch (format.sampleType()) {
-    case QAudioFormat::UnSignedInt:
-      _maxAmplitude = 0xffffffff;
-      break;
-    case QAudioFormat::SignedInt:
-      _maxAmplitude = 0x7fffffff;
-      break;
-    case QAudioFormat::Float:
-      _maxAmplitude = 1;
-      break;
-    default:
-      break;
-    }
-    break;
-
-  default:
-    break;
-  }
-  _maxAmplitude /= 2;
-}
-
-void Recorder::setScore(const QVector<int> &scoreNotes)
-{
-  _scoreNotes = scoreNotes;
-  _dtwRow.resize(_scoreNotes.size());
-  _nextRow.resize(_scoreNotes.size());
-  resetDtw();
-}
-
-int Recorder::findNoteFromPitch(float pitch)
-{
-  auto &notesBoundry = _settings->notesFrequencyBoundry();
-  int beg = 0, end = notesBoundry.size() - 1;
-  while (beg < end) {
-    int m = (beg + end) / 2;
-    if (notesBoundry[m].second < pitch)
-      beg = m + 1;
-    else if (notesBoundry[m].first > pitch)
-      end = m - 1;
-    else
-      beg = end = m;
-  }
-  return beg;
-}
-
-void Recorder::startRecording()
-{
-  if (_recorder->status() == QAudioRecorder::RecordingStatus) {
-    _recorder->stop();
-    while (_recorder->status() == QAudioRecorder::FinalizingStatus)
-      QThread::msleep(10);
-  }
-  _isRunning = true;
-  resetDtw();
-  _recorder->record();
-  emit positionChanged(0);
-}
-
-void Recorder::stopRecording()
-{
-  _isRunning = false;
-  _recorder->stop();
-  while (_recorder->status() == QAudioRecorder::FinalizingStatus)
-    QThread::msleep(10);
-  _recorder->record();
-}
-
 void Recorder::processBuffer(const QAudioBuffer buffer)
 {
-  //  qInfo() << QDateTime::currentDateTime() << buffer.sampleCount();
+//    qInfo() << QDateTime::currentDateTime() << buffer.sampleCount();
 
   if (buffer.format() != _currentFormat) {
     _currentFormat = buffer.format();
@@ -175,12 +74,20 @@ void Recorder::processBuffer(const QAudioBuffer buffer)
   }
 
   updateLevel(buffer);
-  if (!_isRunning)
+  if (!_isFollowing)
     return;
 
   convertBufferToAudio(buffer);
   if (_audio.size() < static_cast<size_t>(_settings->frameSize()))
     return;
+
+  bool isSkipped = false;
+  float skippedValue = 0;
+  if (_audio.size() % 2 == 1) {
+    skippedValue = _audio.back();
+    _audio.pop_back();
+    isSkipped = true;
+  }
 
   _windowCalculator->compute();
   _spectrumCalculator->compute();
@@ -202,6 +109,8 @@ void Recorder::processBuffer(const QAudioBuffer buffer)
   }
 
   _audio.erase(_audio.begin(), _audio.begin() + _settings->hopSize());
+  if (isSkipped)
+    _audio.push_back(skippedValue);
 }
 
 void Recorder::updateLevel(const QAudioBuffer &buffer)
@@ -294,4 +203,93 @@ void Recorder::calculatePosition()
   _position = position;
 }
 
+void Recorder::setSettings(const Settings *settings)
+{
+  _settings = settings;
+}
 
+void Recorder::setMaxAmplitude(const QAudioFormat &format)
+{
+  switch (format.sampleSize()) {
+  case 8:
+    switch (format.sampleType()) {
+    case QAudioFormat::UnSignedInt:
+      _maxAmplitude = 255;
+      break;
+    case QAudioFormat::SignedInt:
+      _maxAmplitude = 127;
+      break;
+    default:
+      break;
+    }
+    break;
+  case 16:
+    switch (format.sampleType()) {
+    case QAudioFormat::UnSignedInt:
+      _maxAmplitude = 65535;
+      break;
+    case QAudioFormat::SignedInt:
+      _maxAmplitude = 32767;
+      break;
+    default:
+      break;
+    }
+    break;
+
+  case 32:
+    switch (format.sampleType()) {
+    case QAudioFormat::UnSignedInt:
+      _maxAmplitude = 0xffffffff;
+      break;
+    case QAudioFormat::SignedInt:
+      _maxAmplitude = 0x7fffffff;
+      break;
+    case QAudioFormat::Float:
+      _maxAmplitude = 1;
+      break;
+    default:
+      break;
+    }
+    break;
+
+  default:
+    break;
+  }
+  _maxAmplitude /= 4;
+}
+
+void Recorder::setScore(const QVector<int> &scoreNotes)
+{
+  _scoreNotes = scoreNotes;
+  _dtwRow.resize(_scoreNotes.size());
+  _nextRow.resize(_scoreNotes.size());
+  resetDtw();
+}
+
+int Recorder::findNoteFromPitch(float pitch)
+{
+  auto &notesBoundry = _settings->notesFrequencyBoundry();
+  int beg = 0, end = notesBoundry.size() - 1;
+  while (beg < end) {
+    int m = (beg + end) / 2;
+    if (notesBoundry[m].second < pitch)
+      beg = m + 1;
+    else if (notesBoundry[m].first > pitch)
+      end = m - 1;
+    else
+      beg = end = m;
+  }
+  return beg;
+}
+
+void Recorder::startFollowing()
+{
+  resetDtw();
+  _isFollowing = true;
+  emit positionChanged(0);
+}
+
+void Recorder::stopFollowing()
+{
+  _isFollowing = false;
+}

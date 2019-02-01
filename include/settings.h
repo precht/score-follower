@@ -43,7 +43,7 @@ private:
 
   QJsonObject _root;
   bool _status = false;
-  const QString _settingsFilename = ":/other/settings.json";
+  const QString _defaultSettingsFilename = ":/other/settings.json";
 
   // essentia
 

@@ -16,6 +16,8 @@ Controller::Controller(QObject *parent)
 {
   Settings *settings = new Settings();
   _status = settings->readSettings();
+  if (!_status)
+    return;
   _settings = settings;
   _lilypond->setSettings(settings);
   _recorder->setSettings(settings);
@@ -24,9 +26,9 @@ Controller::Controller(QObject *parent)
   _lilypond->moveToThread(&_lilypondThread);
   _recorder->moveToThread(&_recorderThread);
 
-  connect(this, &Controller::startRecording, _recorder, &Recorder::startRecording);
-  connect(this, &Controller::startRecording, _recorder, &Recorder::startRecording);
-  connect(this, &Controller::stopRecording, _recorder, &Recorder::stopRecording);
+  connect(this, &Controller::startRecording, _recorder, &Recorder::startFollowing);
+  connect(this, &Controller::startRecording, _recorder, &Recorder::startFollowing);
+  connect(this, &Controller::stopRecording, _recorder, &Recorder::stopFollowing);
   connect(this, &Controller::generateScore, _lilypond, &Lilypond::generateScore);
   connect(_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
   connect(_recorder, &Recorder::levelChanged, [=](float level){ setLevel(level); });

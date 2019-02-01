@@ -2,14 +2,8 @@
     <qresource prefix="/">
         <file>qml/Score.qml</file>
         <file>qml/main.qml</file>
-        <file>other/color-changer.ly</file>
-        <file>other/footer.ly</file>
-        <file>other/header.ly</file>
-        <file>other/notes-frequency</file>
-        <file>other/notes-lilypond</file>
         <file>qml/Indicator.qml</file>
-        <file>other/indicator-settings</file>
-        <file>other/notes-confidence</file>
         <file>other/settings.json</file>
+        <file>qml/Separator.qml</file>
     </qresource>
 </RCC>

@@ -1,6 +1,6 @@
 // Author:  Jakub Precht
 
-import QtQuick 2.0
+import QtQuick 2.5
 
 Rectangle {
   property int indicatorX: 0;
