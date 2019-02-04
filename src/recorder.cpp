@@ -53,7 +53,7 @@ void Recorder::initializePitchDetector()
                                   "frameSize", _settings->frameSize(),
                                   "sampleRate", _settings->sampleRate());
 
-  _windowCalculator->input("frame").set(_audio);
+  _windowCalculator->input("frame").set(_audioFrame);
   _windowCalculator->output("frame").set(_windowedframe);
 
   _spectrumCalculator->input("frame").set(_windowedframe);
@@ -78,17 +78,24 @@ void Recorder::processBuffer(const QAudioBuffer buffer)
     return;
 
   convertBufferToAudio(buffer);
-  if (_audio.size() < static_cast<size_t>(_settings->frameSize()))
-    return;
 
-  bool isSkipped = false;
-  float skippedValue = 0;
-  if (_audio.size() % 2 == 1) {
-    skippedValue = _audio.back();
-    _audio.pop_back();
-    isSkipped = true;
+  const size_t requiredSize = static_cast<size_t>(_settings->frameSize());
+  while (_audioFrame.size() + _memory.size() >= requiredSize) {
+    while (_audioFrame.size() < requiredSize) {
+      _audioFrame.push_back(_memory.front());
+      _memory.pop_front();
+    }
+    processFrame();
+    _audioFrame.erase(_audioFrame.begin(), _audioFrame.begin() + _settings->hopSize());
   }
+  while (!_memory.empty()) {
+    _audioFrame.push_back(_memory.front());
+    _memory.pop_front();
+  }
+}
 
+void Recorder::processFrame()
+{
   _windowCalculator->compute();
   _spectrumCalculator->compute();
   _pitchDetector->compute();
@@ -107,10 +114,6 @@ void Recorder::processBuffer(const QAudioBuffer buffer)
 //                        << _settings->minimalConfidence()[newNoteNumber] << ").";
 //    }
   }
-
-  _audio.erase(_audio.begin(), _audio.begin() + _settings->hopSize());
-  if (isSkipped)
-    _audio.push_back(skippedValue);
 }
 
 void Recorder::updateLevel(const QAudioBuffer &buffer)
@@ -149,6 +152,7 @@ void Recorder::convertBufferToAudio(const QAudioBuffer &buffer)
   const auto format = buffer.format();
   const int channelBytes = format.sampleSize() / 8;
 
+  const size_t requiredSize = static_cast<size_t>(_settings->frameSize());
   for (int i = 0; i < buffer.sampleCount(); i++) {
     float value = 0;
 
@@ -170,9 +174,12 @@ void Recorder::convertBufferToAudio(const QAudioBuffer &buffer)
     } else {
       qDebug() << "Unsupported audio format.";
     }
-
-    _audio.push_back(value);
     ptr += channelBytes;
+
+    if (_audioFrame.size() < requiredSize)
+      _audioFrame.push_back(value);
+    else
+      _memory.push_back(value);
   }
 }
 
@@ -255,7 +262,7 @@ void Recorder::setMaxAmplitude(const QAudioFormat &format)
   default:
     break;
   }
-  _maxAmplitude /= 4;
+  _maxAmplitude /= 4; // because this way level bar changes are more visible
 }
 
 void Recorder::setScore(const QVector<int> &scoreNotes)

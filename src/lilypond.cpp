@@ -81,24 +81,15 @@ void Lilypond::generateScore()
   stream.flush();
   lilypondFile.close();
 
-  QProcess *process = new QProcess();
+  _process = new QProcess();
   QStringList config;
   config << "--png";
   config << "-dresolution=" + QString::number(_settings->dpi());
   config << "-o" << directoryPath + "score";
   config << directoryPath + "score.ly";
 
-  connect(process, qOverload<int>(&QProcess::finished), process, &QProcess::deleteLater);
-  connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
-          [=](int exitCode, QProcess::ExitStatus exitStatus) {
-    if (exitCode != 0 || exitStatus != QProcess::NormalExit) {
-      qWarning() << "lilypond error:";
-      qWarning().nospace() << QString::fromStdString(process->readAllStandardError().toStdString());
-    }
-    auto pages = countPages();
-    auto ys = calculateIndicatorYs(pages);
-    emit finishedGeneratingScore(pages, ys);
-  });
+  connect(_process, qOverload<int>(&QProcess::finished), _process, &QProcess::deleteLater);
+  connect(_process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, &Lilypond::finish);
 
   QFileInfo checkLilypond("/usr/bin/lilypond");
   if (!checkLilypond.exists()) {
@@ -106,7 +97,18 @@ void Lilypond::generateScore()
     return;
   }
 
-  process->start("/usr/bin/lilypond", config);
+  _process->start("/usr/bin/lilypond", config);
+}
+
+void Lilypond::finish(int exitCode, QProcess::ExitStatus exitStatus)
+{
+  if (exitCode != 0 || exitStatus != QProcess::NormalExit) {
+    qWarning() << "lilypond error:";
+    qWarning().nospace() << QString::fromStdString(_process->readAllStandardError().toStdString());
+  }
+  auto pages = countPages();
+  auto ys = calculateIndicatorYs(pages);
+  emit finishedGeneratingScore(pages, ys);
 }
 
 int Lilypond::countPages() const
@@ -117,7 +119,7 @@ int Lilypond::countPages() const
   return (dir.entryList().size() - 1);
 }
 
-QVector<QVector<int> > Lilypond::calculateIndicatorYs(int pagesNumber) const
+QVector<QVector<int>> Lilypond::calculateIndicatorYs(int pagesNumber) const
 {
   QVector<QVector<int>> indicatorYs;
   for (int i = 1; i <= pagesNumber; i++) {
@@ -135,9 +137,9 @@ QVector<QVector<int> > Lilypond::calculateIndicatorYs(int pagesNumber) const
     int counter = 0;
     for (int y = image.height(); y >= 0; y--) {
       QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(y));
-      QColor col(line[_settings->staffIndent()]);
+      QColor color(line[_settings->staffIndent()]);
 
-      if(col == Qt::white) {
+      if(color == Qt::white) {
         lastWasWhite = true;
       } else {
         if (!lastWasWhite)

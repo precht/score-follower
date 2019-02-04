@@ -166,15 +166,15 @@
 #(set-default-paper-size \"a6landscape\")\
 \
 \\paper {\
-% remove first line indent\
-  indent = 0\cm\
-% remove page number\
-% print-page-number = ##f\
+  % remove first line indent\
+  indent = 0\\cm\
+  % remove page number\
+%  print-page-number = ##f\
   print-first-page-number = ##t\
 }\
 \
 \\header {\
-% remove footer\
+  % remove footer\
   tagline = \"\"\
 }\
 \

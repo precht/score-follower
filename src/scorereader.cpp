@@ -63,7 +63,7 @@ QVector<int> ScoreReader::readMidiFile(const QString &filename)
     int note = midifile[track][event][1];
     int volume = midifile[track][event][2];
     if (action == _midiNoteOnActionCode && volume > 0)
-      scoreNotes.append(note);
+      scoreNotes.push_back(note);
   }
 
   return scoreNotes;

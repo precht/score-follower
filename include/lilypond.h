@@ -5,6 +5,7 @@
 
 #include <QObject>
 #include <QVector>
+#include <QProcess>
 
 class Settings;
 
@@ -23,12 +24,16 @@ public slots:
 signals:
   void finishedGeneratingScore(int pagesNumber, QVector<QVector<int>> indicatorYs);
 
+private slots:
+  void finish(int exitCode, QProcess::ExitStatus exitStatus);
+
 private:
   int countPages() const;
   QVector<QVector<int>> calculateIndicatorYs(int pagesNumber) const;
 
   // ----------
 
+  QProcess *_process;
   const Settings *_settings;
   QVector<int> _scoreNotes;
 };

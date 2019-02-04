@@ -40,7 +40,7 @@ private:
   void calculateMaxAmplitude();
   void updateLevel(const QAudioBuffer &buffer);
   void convertBufferToAudio(const QAudioBuffer &buffer);
-
+  void processFrame();
   void setMaxAmplitude(const QAudioFormat &format);
 
   // ----------
@@ -76,7 +76,8 @@ private:
   float _currentPitch = 0;
   float _currentConfidence = 0;
 
-  std::vector<float> _audio;
+  std::deque<float> _memory;
+  std::vector<float> _audioFrame;
   std::vector<float> _spectrum;
   std::vector<float> _windowedframe;
 

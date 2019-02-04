@@ -64,6 +64,11 @@ bool Settings::readSettings(const QString &filename)
     _status = false;
   }
 
+  if (_frameSize % 2 == 1) {
+    qWarning().nospace() << "Frame size cannot be odd. Read value: " << _frameSize << ".";
+    _status = false;
+  }
+
   _root = { };
   return _status;
 }
