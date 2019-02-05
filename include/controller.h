@@ -25,7 +25,7 @@ class Controller : public QObject
   Q_PROPERTY(int currentPage READ currentPage NOTIFY currentPageChanged)
 
 public:
-  explicit Controller(QObject *parent = nullptr);
+  explicit Controller(bool verbose = false, QObject *parent = nullptr);
   ~Controller();
 
   bool createdSuccessfully() const;

@@ -1,13 +1,12 @@
 {
   "author": "Jakub Precht",
 
-  "_comment1": "recording device produces 100 buffers per second, set at 48 kHz will produce buffers of a size 480 samples;\
-               an array of frameSize samples will be used to detect fundamental frequency;\
+  "_comment1": "an array of frameSize samples will be used to detect fundamental frequency;\
                hopSize defines how many samples should be read from input before calling pitch detection again",
 
   "sampleRate": "480 * 100",
-  "frameSize": "480 * 18",
-  "hopSize": "480 * 3",
+  "frameSize": "480 * 20",
+  "hopSize": "480 * 4",
 
   "_comment2": "for each note minimal confidence is calculated in following way: \
                averageConfidence * confidenceCoefficient + confidenceShift",

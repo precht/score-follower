@@ -8,6 +8,7 @@ CONFIG += c++14 file_copies
 QMAKE_CXXFLAGS += -O2 -Wall -Wshadow -Wpedantic -Wextra
 
 QT += quick core multimedia widgets quickcontrols2
+#QT += quick core multimedia widgets
 DEFINES += QT_DEPRECATED_WARNINGS
 
 INCLUDEPATH += include

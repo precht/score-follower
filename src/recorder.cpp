@@ -66,7 +66,19 @@ void Recorder::initializePitchDetector()
 
 void Recorder::processBuffer(const QAudioBuffer buffer)
 {
-//    qInfo() << QDateTime::currentDateTime() << buffer.sampleCount();
+  if (_settings->verbose()) {
+    auto time = QDateTime::currentDateTime();
+    if (_currentSecond != time.toSecsSinceEpoch()) {
+      if (_currentSecond != 0) {
+        qInfo().nospace().noquote() << time.toString("hh:mm:ss") << ": " << _samplesInCurrentSecond << " samples.";
+        _samplesInCurrentSecond = 0;
+      } else {
+        qInfo() << "Buffer size: " <<  buffer.sampleCount();
+      }
+      _currentSecond = time.toSecsSinceEpoch();
+    }
+    _samplesInCurrentSecond += buffer.sampleCount();
+  }
 
   if (buffer.format() != _currentFormat) {
     _currentFormat = buffer.format();
@@ -101,18 +113,31 @@ void Recorder::processFrame()
   _pitchDetector->compute();
 
   auto &notesBoundry = _settings->notesFrequencyBoundry();
-  if (_currentPitch < notesBoundry[_noteNumber].first || _currentPitch > notesBoundry[_noteNumber].second) {
-    int newNoteNumber = findNoteFromPitch(_currentPitch);
+  if (_currentPitch < notesBoundry[_currentNoteNumber].first || _currentPitch > notesBoundry[_currentNoteNumber].second) {
+    int noteNumber = findNoteFromPitch(_currentPitch);
 
-    if (_currentConfidence >= _settings->minimalConfidence()[newNoteNumber]) {
-      _noteNumber = newNoteNumber;
+    if (_currentConfidence >= _settings->minimalConfidence()[noteNumber]) {
+      _currentNoteNumber = noteNumber;
       calculatePosition();
-      qInfo().nospace() << "Detected note " << newNoteNumber << ".";
+
+      if (_settings->verbose() && _lastWasSkipped) {
+        qInfo().nospace() << "Note " << _lastSkippedNote << " was skipped " << _skippedCount  << " times (<"
+                          << _settings->minimalConfidence()[noteNumber] << ").";
+        _lastWasSkipped = false;
+      }
+
+      qInfo().nospace() << "Detected note " << noteNumber << ".";
     }
-//    else {
-//      qInfo().nospace() << "Note " << newNoteNumber << " skipped (" << _currentConfidence << " < "
-//                        << _settings->minimalConfidence()[newNoteNumber] << ").";
-//    }
+    else if (_settings->verbose()){
+      if (_lastWasSkipped && _lastSkippedNote != noteNumber) {
+        qInfo().nospace() << "Note " << _lastSkippedNote << " was skipped " << _skippedCount  << " times (<"
+                          << _settings->minimalConfidence()[noteNumber] << ").";
+        _skippedCount = 0;
+      }
+      _lastWasSkipped = true;
+      _lastSkippedNote = noteNumber;
+      _skippedCount++;
+    }
   }
 }
 
@@ -192,12 +217,12 @@ void Recorder::resetDtw()
 void Recorder::calculatePosition()
 {
   // dtw algorithm
-  _nextRow[0] = qAbs(_noteNumber - _scoreNotes[0]) + _dtwRow[0];
+  _nextRow[0] = qAbs(_currentNoteNumber - _scoreNotes[0]) + _dtwRow[0];
 
   int position = 0;
   int64_t minValue = _nextRow[0];
   for (int i = 1; i < _dtwRow.size(); i++) {
-    _nextRow[i] = qAbs(_noteNumber - _scoreNotes[i]) + qMin(_nextRow[i - 1], qMin(_dtwRow[i], _dtwRow[i-1]));
+    _nextRow[i] = qAbs(_currentNoteNumber - _scoreNotes[i]) + qMin(_nextRow[i - 1], qMin(_dtwRow[i], _dtwRow[i-1]));
     if (_nextRow[i] < minValue) {
       position = i;
       minValue = _nextRow[i];
@@ -294,9 +319,11 @@ void Recorder::startFollowing()
   resetDtw();
   _isFollowing = true;
   emit positionChanged(0);
+  qInfo() << "Started score following.";
 }
 
 void Recorder::stopFollowing()
 {
   _isFollowing = false;
+  qInfo() << "Stopped score following.";
 }

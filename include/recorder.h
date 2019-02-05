@@ -64,6 +64,8 @@ private:
   // position
 
   int _position = 0;
+  qint64 _currentSecond = 0;
+  int _samplesInCurrentSecond = 0;
   QVector<int> _scoreNotes;
   QVector<int64_t> _dtwRow;
   QVector<int64_t> _nextRow;
@@ -72,9 +74,12 @@ private:
 
   const int64_t _infinity = std::numeric_limits<int64_t>::max();
   int _bufferSize = 0;
-  int _noteNumber = 0;
+  int _currentNoteNumber = 0;
   float _currentPitch = 0;
   float _currentConfidence = 0;
+  bool _lastWasSkipped = false;
+  int _lastSkippedNote = 0;
+  int _skippedCount = 0;
 
   std::deque<float> _memory;
   std::vector<float> _audioFrame;

@@ -32,6 +32,9 @@ public:
   const QString& lilypondHeader() const;
   const QString& lilypondFooter() const;
 
+  bool verbose() const;
+  void setVerbose(bool verbose);
+
 private:
   bool readSettings(const QString &filename);
   double readNumber(const QString &name);
@@ -41,6 +44,7 @@ private:
 
   // ----------
 
+  bool _verbose = false;
   QJsonObject _root;
   bool _status = false;
   const QString _defaultSettingsFilename = ":/other/settings.json";

@@ -10,8 +10,18 @@
 #include "controller.h"
 #include "recorder.h"
 
+#include <cstring>
+
 int main(int argc, char *argv[])
 {
+  bool isVerbose = false;
+  for (int i = 1; i < argc; i++) {
+    if (std::strcmp(argv[i], "-v") && std::strcmp(argv[i], "--verbose"))
+      qWarning().nospace() << "Unrecognized argument: " << QString(argv[i]) <<".";
+    else
+      isVerbose = true;
+  }
+
   QQuickStyle::setStyle("org.kde.desktop");
   QQuickStyle::setFallbackStyle("Default");
 
@@ -19,7 +29,7 @@ int main(int argc, char *argv[])
   QApplication app(argc, argv);
   QQmlApplicationEngine engine;
 
-  Controller controller;
+  Controller controller(isVerbose);
   if (!controller.createdSuccessfully()) {
     qCritical() << "Aborting...";
     return -1;

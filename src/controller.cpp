@@ -11,10 +11,11 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 
-Controller::Controller(QObject *parent)
+Controller::Controller(bool verbose, QObject *parent)
   : QObject(parent), _lilypond(new Lilypond()), _recorder(new Recorder())
 {
   Settings *settings = new Settings();
+  settings->setVerbose(verbose);
   _status = settings->readSettings();
   if (!_status)
     return;
@@ -26,7 +27,6 @@ Controller::Controller(QObject *parent)
   _lilypond->moveToThread(&_lilypondThread);
   _recorder->moveToThread(&_recorderThread);
 
-  connect(this, &Controller::startRecording, _recorder, &Recorder::startFollowing);
   connect(this, &Controller::startRecording, _recorder, &Recorder::startFollowing);
   connect(this, &Controller::stopRecording, _recorder, &Recorder::stopFollowing);
   connect(this, &Controller::generateScore, _lilypond, &Lilypond::generateScore);
@@ -52,6 +52,7 @@ Controller::~Controller()
   _lilypondThread.quit();
   _recorderThread.quit();
   QThread::msleep(100);
+  delete _settings;
 }
 
 bool Controller::createdSuccessfully() const

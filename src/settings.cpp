@@ -179,6 +179,16 @@ bool Settings::readIndicatorXPositions()
   return true;
 }
 
+bool Settings::verbose() const
+{
+  return _verbose;
+}
+
+void Settings::setVerbose(bool verbose)
+{
+  _verbose = verbose;
+}
+
 int Settings::sampleRate() const
 {
   return _sampleRate;
