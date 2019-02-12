@@ -301,17 +301,17 @@ void Recorder::setScore(const QVector<int> &scoreNotes)
 int Recorder::findNoteFromPitch(float pitch)
 {
   auto &notesBoundry = _settings->notesFrequencyBoundry();
-  int beg = 0, end = notesBoundry.size() - 1;
-  while (beg < end) {
-    int m = (beg + end) / 2;
-    if (notesBoundry[m].second < pitch)
-      beg = m + 1;
-    else if (notesBoundry[m].first > pitch)
-      end = m - 1;
+  int beginning = 0, end = notesBoundry.size() - 1;
+  while (beginning < end) {
+    int middle = (beginning + end) / 2;
+    if (notesBoundry[middle].second < pitch)
+      beginning = middle + 1;
+    else if (notesBoundry[middle].first > pitch)
+      end = middle - 1;
     else
-      beg = end = m;
+      beginning = end = middle;
   }
-  return beg;
+  return beginning;
 }
 
 void Recorder::startFollowing()

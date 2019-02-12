@@ -1,6 +1,8 @@
 // Author:  Jakub Precht
 
 #include "include/settings.h"
+#include <cmath>
+
 #include <QDebug>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -122,7 +124,7 @@ bool Settings::readNotes()
     return false;
 
   QJsonArray notes = _root.value("notes").toArray();
-  QVector<int> frequency(notes.size());
+  QVector<float> frequency(notes.size());
   _minimalConfidence.fill(0, notes.size());
   _lilypondNotesNotation.fill("", notes.size());
 
@@ -133,7 +135,7 @@ bool Settings::readNotes()
     if (row[0].isDouble() && row[1].isDouble() && row[2].isDouble() && row[3].isString() == false)
       return false;
     int number = static_cast<int>(row[0].toDouble());
-    frequency[number] = static_cast<int>(row[1].toDouble());
+    frequency[number] = static_cast<float>(row[1].toDouble());
     _minimalConfidence[number] = static_cast<float>(row[2].toDouble());
     if (_minimalConfidence[number] == 0.f) {
       _minimalConfidence[number] = 1;
@@ -148,7 +150,7 @@ bool Settings::readNotes()
   float lastBoundry = 0;
   _notesFrequencyBoundry.clear();
   for (int i = 1; i < frequency.size(); i++) {
-    float boundry = (frequency[i - 1] + frequency[i]) / 2;
+    float boundry = std::sqrt(frequency[i - 1] * frequency[i]);
     _notesFrequencyBoundry.push_back({ lastBoundry, boundry });
     lastBoundry = boundry;
   }

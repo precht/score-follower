@@ -4,9 +4,9 @@
   "_comment1": "an array of frameSize samples will be used to detect fundamental frequency;\
                hopSize defines how many samples should be read from input before calling pitch detection again",
 
-  "sampleRate": "480 * 100",
-  "frameSize": "480 * 20",
-  "hopSize": "480 * 4",
+  "sampleRate": "48 * 1000",
+  "frameSize": "48 * 200",
+  "hopSize": "48 * 40",
 
   "_comment2": "for each note minimal confidence is calculated in following way: \
                averageConfidence * confidenceCoefficient + confidenceShift",
