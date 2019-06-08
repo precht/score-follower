@@ -12,218 +12,218 @@
 #include <QStandardPaths>
 
 Controller::Controller(bool verbose, QObject *parent)
-  : QObject(parent), _lilypond(new Lilypond()), _recorder(new Recorder())
+    : QObject(parent), m_lilypond(new Lilypond()), m_recorder(new Recorder())
 {
-  Settings *settings = new Settings();
-  settings->setVerbose(verbose);
-  _status = settings->readSettings();
-  if (!_status)
-    return;
-  _settings = settings;
-  _lilypond->setSettings(settings);
-  _recorder->setSettings(settings);
-  _status &= _recorder->initialize();
+    Settings *settings = new Settings();
+    settings->setVerbose(verbose);
+    m_status = settings->readSettings();
+    if (!m_status)
+        return;
+    m_settings = settings;
+    m_lilypond->setSettings(settings);
+    m_recorder->setSettings(settings);
+    m_status &= m_recorder->initialize();
 
-  _lilypond->moveToThread(&_lilypondThread);
-  _recorder->moveToThread(&_recorderThread);
+    m_lilypond->moveToThread(&m_lilypond_thread);
+    m_recorder->moveToThread(&m_recorder_thread);
 
-  connect(this, &Controller::startRecording, _recorder, &Recorder::startFollowing);
-  connect(this, &Controller::stopRecording, _recorder, &Recorder::stopFollowing);
-  connect(this, &Controller::generateScore, _lilypond, &Lilypond::generateScore);
-  connect(_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
-  connect(_recorder, &Recorder::levelChanged, [=](float level){ setLevel(level); });
+    connect(this, &Controller::startRecording, m_recorder, &Recorder::startFollowing);
+    connect(this, &Controller::stopRecording, m_recorder, &Recorder::stopFollowing);
+    connect(this, &Controller::generateScore, m_lilypond, &Lilypond::generateScore);
+    connect(m_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
+    connect(m_recorder, &Recorder::levelChanged, [=](float level){ setLevel(level); });
 
-  connect(_lilypond, &Lilypond::finishedGeneratingScore, [=](int pagesCount, QVector<QVector<int>> indicatorYs){
-    _currentPage = 1;
-    _indicatorYs = indicatorYs;
-    setPagesNumber(pagesCount);
-    emit currentPageChanged();
-    emit updateScore();
-  });
+    connect(m_lilypond, &Lilypond::finishedGeneratingScore, [=](int pages_count, QVector<QVector<int>> indicator_ys){
+        m_current_page = 1;
+        m_indicator_ys = indicator_ys;
+        setPagesNumber(pages_count);
+        emit currentPageChanged();
+        emit updateScore();
+    });
 
-  connect(&_timer, &QTimer::timeout, [=](){ emit generateScore(); });
+    connect(&m_timer, &QTimer::timeout, [=](){ emit generateScore(); });
 
-  _recorderThread.start();
-  _lilypondThread.start();
+    m_recorder_thread.start();
+    m_lilypond_thread.start();
 }
 
 Controller::~Controller()
 {
-  _lilypondThread.quit();
-  _recorderThread.quit();
-  QThread::msleep(100);
-  delete _settings;
+    m_lilypond_thread.quit();
+    m_recorder_thread.quit();
+    QThread::msleep(100);
+    delete m_settings;
 }
 
 bool Controller::createdSuccessfully() const
 {
-  return _status;
+    return m_status;
 }
 
 bool Controller::openScore()
 {
-  _toOpenFilename = QFileDialog::getOpenFileName(nullptr, "Open Score",
-                                                 QStandardPaths::writableLocation(QStandardPaths::MusicLocation),
-                                                 "Score Files (*.txt *.mid);; All Files (*.*)");
-  if (_toOpenFilename == "")
-    return false;
+    m_file_to_open = QFileDialog::getOpenFileName(nullptr, "Open Score",
+                                                  QStandardPaths::writableLocation(QStandardPaths::MusicLocation),
+                                                  "Score Files (*.txt *.mid);; All Files (*.*)");
+    if (m_file_to_open == "")
+        return false;
 
-  QVector<int> scoreNotes = ScoreReader::readScoreFile(_toOpenFilename);
-  _lilypond->setScore(scoreNotes);
-  _recorder->setScore(scoreNotes);
-  setScoreLength(scoreNotes.size());
+    QVector<int> score_notes = ScoreReader::readScoreFile(m_file_to_open);
+    m_lilypond->setScore(score_notes);
+    m_recorder->setScore(score_notes);
+    setScoreLength(score_notes.size());
 
-  emit generateScore();
-  return true;
+    emit generateScore();
+    return true;
 }
 
 int Controller::playedNotes() const
 {
-  return _playedNotes;
+    return m_played_notes;
 }
 
-void Controller::setPlayedNotes(int playedNotes)
+void Controller::setPlayedNotes(int played_notes)
 {
-  if (playedNotes == _playedNotes)
-    return;
+    if (played_notes == m_played_notes)
+        return;
 
-  _playedNotes = playedNotes;
-  updateCurrentPage();
-  emit playedNotesChanged();
+    m_played_notes = played_notes;
+    updateCurrentPage();
+    emit playedNotesChanged();
 }
 
 int Controller::indicatorHeight() const
 {
-  return _settings->indicatorHeight();
+    return m_settings->indicatorHeight();
 }
 
 int Controller::indicatorWidth() const
 {
-  return _settings->indicatorWidth();
+    return m_settings->indicatorWidth();
 }
 
 double Controller::indicatorScale() const
 {
-  return _indicatorScale;
+    return m_indicator_scale;
 }
 
-void Controller::setIndicatorScale(double indicatorScale)
+void Controller::setIndicatorScale(double indicator_scale)
 {
-  _indicatorScale = indicatorScale;
-  emit indicatorScaleChanged();
+    m_indicator_scale = indicator_scale;
+    emit indicatorScaleChanged();
 }
 
 bool Controller::follow() const
 {
-  return _follow;
+    return m_follow;
 }
 
 void Controller::setFollow(bool follow)
 {
-  if (_follow == follow)
-    return;
+    if (m_follow == follow)
+        return;
 
-  _follow = follow;
-  if (follow == true) {
-    emit startRecording();
-  } else {
-    emit stopRecording();
-  }
+    m_follow = follow;
+    if (follow == true) {
+        emit startRecording();
+    } else {
+        emit stopRecording();
+    }
 
-  emit followChanged();
+    emit followChanged();
 }
 
 float Controller::level() const
 {
-  return _level;
+    return m_level;
 }
 
 void Controller::setLevel(float level)
 {
-  _level = level;
-  emit levelChanged();
+    m_level = level;
+    emit levelChanged();
 }
 
 int Controller::indicatorX(int index)
 {
-  if (index < 0 || _settings->indicatorXs().size() == 0) {
-    qWarning() << "wrong indicator x index or empty x indicator vector";
-    return 0;
-  }
-  return _settings->indicatorXs()[index % _settings->indicatorXs().size()];
+    if (index < 0 || m_settings->indicatorXs().size() == 0) {
+        qWarning() << "wrong indicator x index or empty x indicator vector";
+        return 0;
+    }
+    return m_settings->indicatorXs()[index % m_settings->indicatorXs().size()];
 }
 
 int Controller::indicatorY(int index)
 {
-  if (_settings->indicatorXs().size() == 0 || _indicatorYs.size() == 0) {
-    qWarning() << "Empty indicator vectors";
-    return 0;
-  }
+    if (m_settings->indicatorXs().size() == 0 || m_indicator_ys.size() == 0) {
+        qWarning() << "Empty indicator vectors";
+        return 0;
+    }
 
-  int page = 0;
-  while (page < _pagesNumber && index >= _indicatorYs[page].size() * _settings->indicatorXs().size()) {
-    index -= _indicatorYs[page].size() * _settings->indicatorXs().size();
-    page++;
-  }
+    int page = 0;
+    while (page < m_pages_number && index >= m_indicator_ys[page].size() * m_settings->indicatorXs().size()) {
+        index -= m_indicator_ys[page].size() * m_settings->indicatorXs().size();
+        page++;
+    }
 
-  int y = index / _settings->indicatorXs().size();
-  if (y < 0 || y >= _indicatorYs[page].size()) {
-    qWarning() << "wrong indicator y index:" << index;
-    return 0;
-  }
-  return _indicatorYs[page][y];
+    int y = index / m_settings->indicatorXs().size();
+    if (y < 0 || y >= m_indicator_ys[page].size()) {
+        qWarning() << "wrong indicator y index:" << index;
+        return 0;
+    }
+    return m_indicator_ys[page][y];
 }
 
 int Controller::pagesNumber() const
 {
-  return _pagesNumber;
+    return m_pages_number;
 }
 
 int Controller::scoreLength() const
 {
-  return _scoreLength;
+    return m_score_length;
 }
 
 int Controller::currentPage() const
 {
-  return _currentPage;
+    return m_current_page;
 }
 
-void Controller::setPagesNumber(int pagesNumber)
+void Controller::setPagesNumber(int pages_number)
 {
-  if (_pagesNumber == pagesNumber)
-    return;
+    if (m_pages_number == pages_number)
+        return;
 
-  _pagesNumber = pagesNumber;
-  emit pagesNumberChanged();
+    m_pages_number = pages_number;
+    emit pagesNumberChanged();
 }
 
-void Controller::setScoreLength(int scoreLength)
+void Controller::setScoreLength(int score_length)
 {
-  if (_scoreLength == scoreLength)
-    return;
+    if (m_score_length == score_length)
+        return;
 
-  _scoreLength = scoreLength;
-  emit scoreLengthChanged();
+    m_score_length = score_length;
+    emit scoreLengthChanged();
 }
 
 void Controller::updateCurrentPage()
 {
-  int index = _playedNotes;
-  int page = 0;
-  while (page < _pagesNumber && index > _indicatorYs[page].size() * _settings->indicatorXs().size()) {
-    index -= _indicatorYs[page].size() * _settings->indicatorXs().size();
-    page++;
-  }
-  if (page + 1!= _currentPage) {
-    _currentPage = page + 1;
-    emit currentPageChanged();
-  }
+    int index = m_played_notes;
+    int page = 0;
+    while (page < m_pages_number && index > m_indicator_ys[page].size() * m_settings->indicatorXs().size()) {
+        index -= m_indicator_ys[page].size() * m_settings->indicatorXs().size();
+        page++;
+    }
+    if (page + 1!= m_current_page) {
+        m_current_page = page + 1;
+        emit currentPageChanged();
+    }
 }
 
 void Controller::resetPageAndPosition()
 {
-  setPlayedNotes(0);
-  _currentPage = 1;
-  emit currentPageChanged();
+    setPlayedNotes(0);
+    m_current_page = 1;
+    emit currentPageChanged();
 }

@@ -8,13 +8,13 @@
 class ScoreReader
 {
 public:
-  static QVector<int> readScoreFile(const QString &filename);
+    static QVector<int> readScoreFile(const QString &filename);
 
 private:
-  static QVector<int> readMidiFile(const QString &filename);
-  static QVector<int> readTextFile(const QString &filename);
+    static QVector<int> readMidiFile(const QString &filename);
+    static QVector<int> readTextFile(const QString &filename);
 
-  static int _midiNoteOnActionCode;
+    static int m_midi_note_on_action_code;
 };
 
 #endif // SCOREREADER_H

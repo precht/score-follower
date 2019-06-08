@@ -8,150 +8,148 @@
 #include <QDir>
 #include <QImage>
 
-Lilypond::Lilypond(QObject *parent)
-  : QObject(parent)
-{ }
+Lilypond::Lilypond(QObject *parent) : QObject(parent) { }
 
-void Lilypond::setScore(const QVector<int> &scoreNotes)
+void Lilypond::setScore(const QVector<int> &score_notes)
 {
-  _scoreNotes = scoreNotes;
+    m_score_notes = score_notes;
 }
 
 void Lilypond::setSettings(const Settings *settings)
 {
-  _settings = settings;
+    m_settings = settings;
 }
 
 void Lilypond::generateScore()
 {
-  // create directory
-  const QString directoryPath = _settings->lilypondWorkingDirectory();
-  if (!QDir(directoryPath).exists())
-    QDir().mkdir(directoryPath);
+    // create directory
+    const QString directory_path = m_settings->lilypondWorkingDirectory();
+    if (!QDir(directory_path).exists())
+        QDir().mkdir(directory_path);
 
-  // delete old files
-  QDir directory(directoryPath);
-  directory.setNameFilters(QStringList() << "*.*");
-  directory.setFilter(QDir::Files);
-  for (auto &dirFile : directory.entryList())
-    directory.remove(dirFile);
+    // delete old files
+    QDir directory(directory_path);
+    directory.setNameFilters(QStringList() << "*.*");
+    directory.setFilter(QDir::Files);
+    for (auto &dir_file : directory.entryList())
+        directory.remove(dir_file);
 
-  QFile lilypondFile(directoryPath + "score.ly");
-  if (!lilypondFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-    qDebug() << "Failed to open: " << directoryPath + "score.ly";
-    return;
-  }
-
-  QTextStream stream(&lilypondFile);
-  stream << _settings->lilypondHeader();
-  int index = 0;
-  const int notesPerStaff = _settings->notesPerStaff();
-  //bool isBassClef = false;
-  auto &notation = _settings->lilypondNotesNotation();
-  for (; index < _scoreNotes.size(); index++) {
-    if (index % notesPerStaff == 0 && index > 0) {
-      stream << "\\break\n";
+    QFile lilypond_file(directory_path + "score.ly");
+    if (!lilypond_file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        qDebug() << "Failed to open: " << directory_path + "score.ly";
+        return;
     }
-    // switch bass and tremble clef
-    //if (index % _settings->notesPerStaff() == 0) {
-    //  bool isLowNote = false;
-    //  for (int j = 0; j < notesPerStaff && index + j < _scoreNotes.size(); j++)
-    //    if (_scoreNotes[index + j] < 48)
-    //      isLowNote = true;
-    //  if (isLowNote && !isBassClef) {
-    //    stream << "\\clef bass ";
-    //    isBassClef = true;
-    //  } else if (!isLowNote && isBassClef) {
-    //    stream << "\\clef treble ";
-    //    isBassClef = false;
-    //  }
-    //}
-    stream << notation[_scoreNotes[index]];
-    if (index == 0) // set length of first note (rest will follow)
-      stream << 1;
-    stream << ' ';
-  }
-  // add invisible rests at the end of last line
-  if (index % notesPerStaff != 0) {
-    do {
-      stream << "s ";
-    } while (++index % notesPerStaff != 0);
-  }
-  stream << _settings->lilypondFooter();
-  stream.flush();
-  lilypondFile.close();
 
-  _process = new QProcess();
-  QStringList config;
-  config << "--png";
-  config << "-dresolution=" + QString::number(_settings->dpi());
-  config << "-o" << directoryPath + "score";
-  config << directoryPath + "score.ly";
+    QTextStream stream(&lilypond_file);
+    stream << m_settings->lilypondHeader();
+    int index = 0;
+    const int notes_per_staff = m_settings->notesPerStaff();
+    //  bool is_bass_clef = false;
+    auto &notation = m_settings->lilypondNotesNotation();
+    for (; index < m_score_notes.size(); index++) {
+        if (index % notes_per_staff == 0 && index > 0) {
+            stream << "\\break\n";
+        }
+        //    // switch bass and tremble clef
+        //    if (index % m_settings->notesPerStaff() == 0) {
+        //      bool is_low_note = false;
+        //      for (int j = 0; j < notes_per_staff && index + j < m_score_notes.size(); j++)
+        //        if (m_score_notes[index + j] < 48)
+        //          is_low_note = true;
+        //      if (is_low_note && !is_bass_clef) {
+        //        stream << "\\clef bass ";
+        //        is_bass_clef = true;
+        //      } else if (!is_low_note && is_bass_clef) {
+        //        stream << "\\clef treble ";
+        //        is_bass_clef = false;
+        //      }
+        //    }
+        stream << notation[m_score_notes[index]];
+        if (index == 0) // set length of first note (rest will follow)
+            stream << 1;
+        stream << ' ';
+    }
+    // add invisible rests at the end of last line
+    if (index % notes_per_staff != 0) {
+        do {
+            stream << "s ";
+        } while (++index % notes_per_staff != 0);
+    }
+    stream << m_settings->lilypondFooter();
+    stream.flush();
+    lilypond_file.close();
 
-  connect(_process, qOverload<int>(&QProcess::finished), _process, &QProcess::deleteLater);
-  connect(_process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, &Lilypond::finish);
+    m_process = new QProcess();
+    QStringList config;
+    config << "--png";
+    config << "-dresolution=" + QString::number(m_settings->dpi());
+    config << "-o" << directory_path + "score";
+    config << directory_path + "score.ly";
 
-  QFileInfo checkLilypond("/usr/bin/lilypond");
-  if (!checkLilypond.exists()) {
-    qCritical() << "No file \"/usr/bin/lilypond\". Lilypond may be not installed.";
-    return;
-  }
+    connect(m_process, qOverload<int>(&QProcess::finished), m_process, &QProcess::deleteLater);
+    connect(m_process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, &Lilypond::finish);
 
-  _process->start("/usr/bin/lilypond", config);
+    QFileInfo check_lilypond("/usr/bin/lilypond");
+    if (!check_lilypond.exists()) {
+        qCritical() << "No file \"/usr/bin/lilypond\". Lilypond may be not installed.";
+        return;
+    }
+
+    m_process->start("/usr/bin/lilypond", config);
 }
 
-void Lilypond::finish(int exitCode, QProcess::ExitStatus exitStatus)
+void Lilypond::finish(int exit_code, QProcess::ExitStatus exit_status)
 {
-  if (exitCode != 0 || exitStatus != QProcess::NormalExit) {
-    qWarning() << "lilypond error:";
-    qWarning().nospace() << QString::fromStdString(_process->readAllStandardError().toStdString());
-  }
-  auto pages = countPages();
-  auto ys = calculateIndicatorYs(pages);
-  emit finishedGeneratingScore(pages, ys);
+    if (exit_code != 0 || exit_status != QProcess::NormalExit) {
+        qWarning() << "lilypond error:";
+        qWarning().nospace() << QString::fromStdString(m_process->readAllStandardError().toStdString());
+    }
+    auto pages = countPages();
+    auto ys = calculateIndicatorYs(pages);
+    emit finishedGeneratingScore(pages, ys);
 }
 
 int Lilypond::countPages() const
 {
-  QDir dir(_settings->lilypondWorkingDirectory());
-  dir.setNameFilters(QStringList() << "*.png");
-  dir.setFilter(QDir::Files);
-  return (dir.entryList().size() - 1);
+    QDir dir(m_settings->lilypondWorkingDirectory());
+    dir.setNameFilters(QStringList() << "*.png");
+    dir.setFilter(QDir::Files);
+    return (dir.entryList().size() - 1);
 }
 
-QVector<QVector<int>> Lilypond::calculateIndicatorYs(int pagesNumber) const
+QVector<QVector<int>> Lilypond::calculateIndicatorYs(int pages_number) const
 {
-  QVector<QVector<int>> indicatorYs;
-  for (int i = 1; i <= pagesNumber; i++) {
-    QString pageFileName = _settings->lilypondWorkingDirectory() + "score-page" + QString::number(i) + ".png";
-    QFileInfo checkFile(pageFileName);
-    if (!checkFile.exists() || !checkFile.isFile()) {
-      qWarning() << "Score file does not exists: " << pageFileName;
-      break;
+    QVector<QVector<int>> indicator_ys;
+    for (int i = 1; i <= pages_number; i++) {
+        QString page_file_name = m_settings->lilypondWorkingDirectory() + "score-page" + QString::number(i) + ".png";
+        QFileInfo check_file(page_file_name);
+        if (!check_file.exists() || !check_file.isFile()) {
+            qWarning() << "Score file does not exists: " << page_file_name;
+            break;
+        }
+
+        indicator_ys.push_back({}); // new page
+
+        QImage image(page_file_name);
+        bool last_was_white = true;
+        int counter = 0;
+        for (int y = image.height(); y >= 0; y--) {
+            QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(y));
+            QColor color(line[m_settings->staffIndent()]);
+
+            if(color == Qt::white) {
+                last_was_white = true;
+            } else {
+                if (!last_was_white)
+                    continue;
+                last_was_white = false;
+                if (++counter == 5)
+                    indicator_ys.back().push_back(y);
+                counter %= 5;
+            }
+        }
+        std::sort(indicator_ys.back().begin(), indicator_ys.back().end());
     }
 
-    indicatorYs.push_back({}); // new page
-
-    QImage image(pageFileName);
-    bool lastWasWhite = true;
-    int counter = 0;
-    for (int y = image.height(); y >= 0; y--) {
-      QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(y));
-      QColor color(line[_settings->staffIndent()]);
-
-      if(color == Qt::white) {
-        lastWasWhite = true;
-      } else {
-        if (!lastWasWhite)
-          continue;
-        lastWasWhite = false;
-        if (++counter == 5)
-          indicatorYs.back().push_back(y);
-        counter %= 5;
-      }
-    }
-    std::sort(indicatorYs.back().begin(), indicatorYs.back().end());
-  }
-
-  return indicatorYs;
+    return indicator_ys;
 }

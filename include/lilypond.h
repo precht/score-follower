@@ -11,31 +11,31 @@ class Settings;
 
 class Lilypond : public QObject
 {
-  Q_OBJECT
+    Q_OBJECT
 
 public:
-  explicit Lilypond(QObject *parent = nullptr);
-  void setScore(const QVector<int> &scoreNotes);
-  void setSettings(const Settings *settings);
+    explicit Lilypond(QObject *parent = nullptr);
+    void setScore(const QVector<int> &score_notes);
+    void setSettings(const Settings *settings);
 
 public slots:
-  void generateScore();
+    void generateScore();
 
 signals:
-  void finishedGeneratingScore(int pagesNumber, QVector<QVector<int>> indicatorYs);
+    void finishedGeneratingScore(int pages_number, QVector<QVector<int>> indicator_ys);
 
 private slots:
-  void finish(int exitCode, QProcess::ExitStatus exitStatus);
+    void finish(int exit_code, QProcess::ExitStatus exit_status);
 
 private:
-  int countPages() const;
-  QVector<QVector<int>> calculateIndicatorYs(int pagesNumber) const;
+    int countPages() const;
+    QVector<QVector<int>> calculateIndicatorYs(int pages_number) const;
 
-  // ----------
+    // ----------
 
-  QProcess *_process;
-  const Settings *_settings;
-  QVector<int> _scoreNotes;
+    QProcess *m_process;
+    const Settings *m_settings;
+    QVector<int> m_score_notes;
 };
 
 

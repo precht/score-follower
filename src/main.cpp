@@ -14,22 +14,23 @@
 
 int main(int argc, char *argv[])
 {
-  bool isVerbose = false;
+  bool is_verbose = false;
   for (int i = 1; i < argc; i++) {
     if (std::strcmp(argv[i], "-v") && std::strcmp(argv[i], "--verbose"))
       qWarning().nospace() << "Unrecognized argument: " << QString(argv[i]) <<".";
     else
-      isVerbose = true;
+      is_verbose = true;
   }
 
-  QQuickStyle::setStyle("org.kde.desktop");
-  QQuickStyle::setFallbackStyle("Default");
+//  QQuickStyle::setStyle("org.kde.desktop");
+//  QQuickStyle::setFallbackStyle("Default");
+//  QQuickStyle::setStyle("Default");
 
   QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   QApplication app(argc, argv);
   QQmlApplicationEngine engine;
 
-  Controller controller(isVerbose);
+  Controller controller(is_verbose);
   if (!controller.createdSuccessfully()) {
     qCritical() << "Aborting...";
     return -1;

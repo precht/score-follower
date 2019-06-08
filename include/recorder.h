@@ -14,81 +14,81 @@ class Settings;
 
 class Recorder : public QObject
 {
-  Q_OBJECT
+    Q_OBJECT
 
 public:
-  Recorder(QObject *parent = nullptr);
-  bool initialize();
-  void setScore(const QVector<int> &scoreNotes);
-  void resetDtw();
-  void setSettings(const Settings *settings);
-  void setAudioInput(QString audioInput);
+    Recorder(QObject *parent = nullptr);
+    bool initialize();
+    void setScore(const QVector<int> &score_notes);
+    void resetDtw();
+    void setSettings(const Settings *settings);
+    void setAudioInput(QString audio_input);
 
 public slots:
-  void startFollowing();
-  void stopFollowing();
-  void processBuffer(const QAudioBuffer buffer);
+    void startFollowing();
+    void stopFollowing();
+    void processBuffer(const QAudioBuffer buffer);
 
 signals:
-  void positionChanged(int position);
-  void levelChanged(float level);
+    void positionChanged(int position);
+    void levelChanged(float level);
 
 private:
-  void initializePitchDetector();
-  int findNoteFromPitch(float pitch);
-  void calculatePosition();
-  void calculateMaxAmplitude();
-  void updateLevel(const QAudioBuffer &buffer);
-  void convertBufferToAudio(const QAudioBuffer &buffer);
-  void processFrame();
-  void setMaxAmplitude(const QAudioFormat &format);
+    void initializePitchDetector();
+    int findNoteFromPitch(float pitch);
+    void calculatePosition();
+    void calculateMaxAmplitude();
+    void updateLevel(const QAudioBuffer &buffer);
+    void convertBufferToAudio(const QAudioBuffer &buffer);
+    void processFrame();
+    void setMaxAmplitude(const QAudioFormat &format);
 
-  // ----------
+    // ----------
 
-  // recording
+    // recording
 
-  const Settings *_settings;
-  bool _isFollowing = false;
-  QTimer *_timer = nullptr;
-  QAudioProbe *_probe = nullptr;
-  QAudioRecorder *_recorder = nullptr;
-  QAudioInput *_audioInput = nullptr;
-  QAudioFormat _currentFormat;
-  QAudioEncoderSettings _recorderSettings;
+    const Settings *m_settings;
+    bool m_is_following = false;
+    QTimer *m_timer = nullptr;
+    QAudioProbe *m_probe = nullptr;
+    QAudioRecorder *m_recorder = nullptr;
+    QAudioInput *m_audio_input = nullptr;
+    QAudioFormat m_current_format;
+    QAudioEncoderSettings m_recorder_settings;
 
-  float _maxAmplitude = 1;
-  float _level = 0;
-  int _levelCount = 0;
-  const int _maxLevelCount = 16;
+    float m_max_amplitude = 1;
+    float m_level = 0;
+    int m_level_count = 0;
+    const int m_max_level_count = 16;
 
-  // position
+    // position
 
-  int _position = 0;
-  qint64 _currentSecond = 0;
-  int _samplesInCurrentSecond = 0;
-  QVector<int> _scoreNotes;
-  QVector<int64_t> _dtwRow;
-  QVector<int64_t> _nextRow;
+    int m_position = 0;
+    qint64 m_current_second = 0;
+    int m_samples_in_current_second = 0;
+    QVector<int> m_score_notes;
+    QVector<int64_t> m_dtw_row;
+    QVector<int64_t> m_next_row;
 
-  // essentia
+    // essentia
 
-  const int64_t _infinity = std::numeric_limits<int64_t>::max();
-  int _bufferSize = 0;
-  int _currentNoteNumber = 0;
-  float _currentPitch = 0;
-  float _currentConfidence = 0;
-  bool _lastWasSkipped = false;
-  int _lastSkippedNote = 0;
-  int _skippedCount = 0;
+    const int64_t m_infinity = std::numeric_limits<int64_t>::max();
+    int m_buffer_size = 0;
+    int m_current_note_number = 0;
+    float m_current_pitch = 0;
+    float m_current_confidence = 0;
+    bool m_last_was_skipped = false;
+    int m_last_skipped_note = 0;
+    int m_skipped_count = 0;
 
-  std::deque<float> _memory;
-  std::vector<float> _audioFrame;
-  std::vector<float> _spectrum;
-  std::vector<float> _windowedframe;
+    std::deque<float> m_memory;
+    std::vector<float> m_audio_frame;
+    std::vector<float> m_spectrum;
+    std::vector<float> m_windowed_frame;
 
-  essentia::standard::Algorithm* _windowCalculator;
-  essentia::standard::Algorithm* _spectrumCalculator;
-  essentia::standard::Algorithm* _pitchDetector;
+    essentia::standard::Algorithm* m_window_calculator;
+    essentia::standard::Algorithm* m_spectrum_calculator;
+    essentia::standard::Algorithm* m_pitch_detector;
 };
 
 #endif // RECORDER_H
