@@ -34,6 +34,7 @@ bool Settings::readSettings(const QString &filename)
 {
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        m_status = false;
         return false;
     }
     QString content = file.readAll();
