@@ -15,21 +15,21 @@ class Lilypond : public QObject
 
 public:
     explicit Lilypond(QObject *parent = nullptr);
-    void setScore(const QVector<int> &score_notes);
+    virtual void setScore(const QVector<int> &score_notes);
     void setSettings(const Settings *settings);
+    void detectStaffHorizontalPositionsInImage(QImage &image, QVector<int> &positions);
+    virtual ~Lilypond();
+    virtual int countPages();
 
 public slots:
     void generateScore();
+    void finish(int exit_code, QProcess::ExitStatus exit_status);
 
 signals:
     void finishedGeneratingScore(int pages_number, QVector<QVector<int>> indicator_ys);
 
-private slots:
-    void finish(int exit_code, QProcess::ExitStatus exit_status);
-
 private:
-    int countPages() const;
-    QVector<QVector<int>> calculateIndicatorYs(int pages_number) const;
+    QVector<QVector<int>> calculateIndicatorYs(int pages_number);
 
     // ----------
 

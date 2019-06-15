@@ -17,14 +17,16 @@ HEADERS += \
     include/lilypond.h \
     include/recorder.h \
     include/scorereader.h \
-    include/settings.h
+    include/settings.h \
+    include/analyzer.h
 
 SOURCES += \
     src/controller.cpp \
     src/lilypond.cpp \
     src/recorder.cpp \
     src/scorereader.cpp \
-    src/settings.cpp
+    src/settings.cpp \
+    src/analyzer.cpp
 
 DISTFILES += \
     core.pri

@@ -1,14 +1,12 @@
 TEMPLATE = subdirs
 
-include(common.pri)
-
 SUBDIRS += \
     core \
-    core-tests \
+    tests \
     gui
 
 gui.depends = core
-core-tests.depends = core
+tests.depends = core
 
 OTHER_FILES += \
     common.pri

@@ -9,6 +9,7 @@
 #include <QImage>
 
 Lilypond::Lilypond(QObject *parent) : QObject(parent) { }
+Lilypond::~Lilypond() { }
 
 void Lilypond::setScore(const QVector<int> &score_notes)
 {
@@ -105,11 +106,13 @@ void Lilypond::finish(int exit_code, QProcess::ExitStatus exit_status)
         qWarning().nospace() << QString::fromStdString(m_process->readAllStandardError().toStdString());
     }
     auto pages = countPages();
-    auto ys = calculateIndicatorYs(pages);
+    QVector<QVector<int>> ys;
+    if (pages > 0)
+        ys = calculateIndicatorYs(pages);
     emit finishedGeneratingScore(pages, ys);
 }
 
-int Lilypond::countPages() const
+int Lilypond::countPages()
 {
     QDir dir(m_settings->lilypondWorkingDirectory());
     dir.setNameFilters(QStringList() << "*.png");
@@ -117,7 +120,7 @@ int Lilypond::countPages() const
     return (dir.entryList().size() - 1);
 }
 
-QVector<QVector<int>> Lilypond::calculateIndicatorYs(int pages_number) const
+QVector<QVector<int>> Lilypond::calculateIndicatorYs(int pages_number)
 {
     QVector<QVector<int>> indicator_ys;
     for (int i = 1; i <= pages_number; i++) {
@@ -131,25 +134,58 @@ QVector<QVector<int>> Lilypond::calculateIndicatorYs(int pages_number) const
         indicator_ys.push_back({}); // new page
 
         QImage image(page_file_name);
-        bool last_was_white = true;
-        int counter = 0;
-        for (int y = image.height(); y >= 0; y--) {
-            QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(y));
-            QColor color(line[m_settings->staffIndent()]);
-
-            if(color == Qt::white) {
-                last_was_white = true;
-            } else {
-                if (!last_was_white)
-                    continue;
-                last_was_white = false;
-                if (++counter == 5)
-                    indicator_ys.back().push_back(y);
-                counter %= 5;
-            }
-        }
-        std::sort(indicator_ys.back().begin(), indicator_ys.back().end());
+        detectStaffHorizontalPositionsInImage(image, indicator_ys.back());
     }
 
     return indicator_ys;
 }
+
+//#define DUMP_IMAGE
+
+void Lilypond::detectStaffHorizontalPositionsInImage(QImage &image, QVector<int> &positions)
+{
+#ifdef DUMP_IMAGE
+    std::vector<int> dump_data;
+#endif
+
+    bool last_was_white = true;
+    int counter = 0;
+
+    for (int y = image.height(); y >= 0; y--) {
+        QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(y));
+        QColor color(line[m_settings->staffIndent()]);
+
+        if(color == Qt::white) {
+            last_was_white = true;
+        } else {
+            if (!last_was_white)
+                continue;
+            last_was_white = false;
+            if (++counter == 5)
+                positions.push_back(y);
+            counter %= 5;
+        }
+
+#ifdef DUMP_IMAGE
+        int r, g, b;
+        color.getRgb(&r, &g, &b);
+        dump_data.push_back(r);
+        dump_data.push_back(g);
+        dump_data.push_back(b);
+#endif
+    }
+    std::sort(positions.begin(), positions.end());
+
+#ifdef DUMP_IMAGE
+    std::reverse(dump_data.begin(), dump_data.end());
+    auto qout = qInfo().nospace();
+    qout << "IMAGE width " << image.width() << "height "<< image.height() << " staff_indent" << m_settings->staffIndent() << "\n{\n";
+    for (uint i = 0; i < dump_data.size(); i++) {
+        qout << dump_data[i] << ", ";
+        if (i % 30 == 0)
+            qout << '\n';
+    }
+    qout << "\n}";
+#endif
+}
+

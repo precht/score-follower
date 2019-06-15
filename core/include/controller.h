@@ -6,10 +6,13 @@
 #include "lilypond.h"
 #include "recorder.h"
 #include "settings.h"
+#include "analyzer.h"
 
 #include <QObject>
 #include <QTimer>
 #include <QThread>
+
+class ScoreReader;
 
 class Controller : public QObject
 {
@@ -25,7 +28,8 @@ class Controller : public QObject
     Q_PROPERTY(int currentPage READ currentPage NOTIFY currentPageChanged)
 
 public:
-    explicit Controller(bool verbose = false, QObject *parent = nullptr);
+    explicit Controller(bool verbose, Lilypond *lilypond, Recorder *recorder, ScoreReader *score_reader,
+                        Analyzer *analyzer, QObject *parent = nullptr);
     ~Controller();
 
     bool createdSuccessfully() const;
@@ -39,6 +43,7 @@ public slots:
     int indicatorX(int index);
     int indicatorY(int index);
     bool openScore();
+    bool openScore(const QString &file);
     float level() const;
     void setLevel(float level);
     bool follow() const;
@@ -78,6 +83,8 @@ private:
 
     bool m_status = true;
     const Settings *m_settings = nullptr;
+    ScoreReader *m_score_reader = nullptr;
+    Analyzer *m_analyzer = nullptr;
     Lilypond *m_lilypond = nullptr;
     Recorder *m_recorder = nullptr;
     QThread m_lilypond_thread;

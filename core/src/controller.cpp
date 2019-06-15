@@ -11,9 +11,11 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 
-Controller::Controller(bool verbose, QObject *parent)
-    : QObject(parent), m_lilypond(new Lilypond()), m_recorder(new Recorder())
+Controller::Controller(bool verbose, Lilypond *lilypond, Recorder *recorder, ScoreReader *score_reader,
+                       Analyzer *analyzer, QObject *parent)
+    : QObject(parent), m_score_reader(score_reader),  m_analyzer(analyzer), m_lilypond(lilypond), m_recorder(recorder)
 {
+//    m_analyzer = new Analyzer();
     Settings *settings = new Settings();
     settings->setVerbose(verbose);
     m_status = settings->readSettings();
@@ -21,7 +23,9 @@ Controller::Controller(bool verbose, QObject *parent)
         return;
     m_settings = settings;
     m_lilypond->setSettings(settings);
+    m_analyzer->setSettings(settings);
     m_recorder->setSettings(settings);
+    m_recorder->setAnalyzer(m_analyzer);
     m_status &= m_recorder->initialize();
 
     m_lilypond->moveToThread(&m_lilypond_thread);
@@ -30,7 +34,8 @@ Controller::Controller(bool verbose, QObject *parent)
     connect(this, &Controller::startRecording, m_recorder, &Recorder::startFollowing);
     connect(this, &Controller::stopRecording, m_recorder, &Recorder::stopFollowing);
     connect(this, &Controller::generateScore, m_lilypond, &Lilypond::generateScore);
-    connect(m_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
+//    connect(m_recorder, &Recorder::positionChanged, [=](int position){ setPlayedNotes(position); });
+    connect(m_analyzer, &Analyzer::positionChanged, [=](int position){ setPlayedNotes(position); });
     connect(m_recorder, &Recorder::levelChanged, [=](float level){ setLevel(level); });
 
     connect(m_lilypond, &Lilypond::finishedGeneratingScore, [=](int pages_count, QVector<QVector<int>> indicator_ys){
@@ -52,6 +57,7 @@ Controller::~Controller()
     m_lilypond_thread.quit();
     m_recorder_thread.quit();
     QThread::msleep(100);
+//    delete m_analyzer;
     delete m_settings;
 }
 
@@ -68,9 +74,14 @@ bool Controller::openScore()
     if (m_file_to_open == "")
         return false;
 
-    QVector<int> score_notes = ScoreReader::readScoreFile(m_file_to_open);
+    return openScore(m_file_to_open);
+}
+
+bool Controller::openScore(const QString &file)
+{
+    QVector<int> score_notes = m_score_reader->readScoreFile(file);
     m_lilypond->setScore(score_notes);
-    m_recorder->setScore(score_notes);
+    m_analyzer->setScore(score_notes);
     setScoreLength(score_notes.size());
 
     emit generateScore();
@@ -125,8 +136,10 @@ void Controller::setFollow(bool follow)
 
     m_follow = follow;
     if (follow == true) {
+        m_recorder->startFollowing();
         emit startRecording();
     } else {
+        m_recorder->stopFollowing();
         emit stopRecording();
     }
 

@@ -10,10 +10,12 @@
 #include <QJsonArray>
 #include <algorithm>
 #include <QApplication>
+#include <QDir>
 
 bool Settings::readSettings()
 {
-    QString m_settings_filename = QApplication::applicationDirPath() + "/settings.json";
+//    QString m_settings_filename = QApplication::applicationDirPath() + "/settings.json";
+    QString m_settings_filename = QDir::currentPath() + "/settings.json";
     QFileInfo check_file(m_settings_filename);
     if (check_file.exists() && check_file.isFile()) {
         m_status = true;

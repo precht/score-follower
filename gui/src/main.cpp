@@ -9,6 +9,7 @@
 
 #include "controller.h"
 #include "recorder.h"
+#include "scorereader.h"
 
 #include <cstring>
 
@@ -30,7 +31,11 @@ int main(int argc, char *argv[])
   QApplication app(argc, argv);
   QQmlApplicationEngine engine;
 
-  Controller controller(is_verbose);
+  ScoreReader score_reader;
+  Lilypond lilypond;
+  Recorder recorder;
+  Analyzer analyzer;
+  Controller controller(is_verbose, &lilypond, &recorder, &score_reader, &analyzer);
   if (!controller.createdSuccessfully()) {
     qCritical() << "Aborting...";
     return -1;

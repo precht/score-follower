@@ -8,7 +8,8 @@
 class ScoreReader
 {
 public:
-    static QVector<int> readScoreFile(const QString &filename);
+    virtual QVector<int> readScoreFile(const QString &filename);
+    virtual ~ScoreReader() = default;
 
 private:
     static QVector<int> readMidiFile(const QString &filename);
